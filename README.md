@@ -89,11 +89,12 @@ This patch updates the villa booking financial workflow without requiring a data
 - No Supabase migration is required for this update.
 
 
-## v3.3.11 — Main bookings duplicate controls
+## v3.3.12 — Main Bookings duplicate cleanup
 
-- Extends duplicate detection from the New Booking customer picker to the **main Bookings customer list**.
-- Close-name matches such as **Kelly Beattie / Kellie Beattie** and **Grace / Grace Rathbone** are flagged as possible duplicate customer records.
-- A customer with a single booking now gets a **Delete duplicate** shortcut directly on the main Bookings page.
-- Deletion uses the existing confirmation dialog and deletes only that booking, not the customer's other bookings.
-- After deletion the Bookings page refreshes immediately.
-- No Supabase SQL migration is required.
+- Duplicate detection is now rendered **directly inside the main Bookings card HTML**, rather than relying on a post-render selector.
+- Flags **Kelly / Kellie Beattie** style spelling variants.
+- Flags shortened legacy identities such as **Grace / Grace Rathbone**.
+- Suspected duplicate customer cards with one booking show an immediate **Delete duplicate** button while still collapsed.
+- Expanding any itinerary now shows **Delete booking** beside every individual booking, so any unwanted duplicate can be removed from the main Bookings page.
+- Delete confirmation still removes only the selected booking.
+- No Supabase migration is required.

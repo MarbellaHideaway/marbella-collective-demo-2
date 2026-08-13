@@ -543,23 +543,38 @@ button.is-pressed{
 }
 
 
-/* v3.3.11 — duplicate controls on main bookings page */
-.main-duplicate-warning{
+/* v3.3.12 — duplicate controls built directly into the main booking renderer */
+.guest-itinerary-card{position:relative}
+.guest-itinerary-card.has-duplicate-warning{border-color:#d8b35a}
+.booking-duplicate-warning{
   display:inline-flex;
-  margin-top:6px;
+  margin-top:5px;
   width:max-content;
-  max-width:100%;
-  padding:4px 8px;
+  max-width:180px;
+  padding:3px 7px;
   border-radius:999px;
-  background:#fff1c8;
-  color:#7c5600;
-  font-size:12px;
+  background:#fff0c2;
+  color:#765300;
+  font-size:11px;
+  line-height:1.2;
   font-weight:800;
 }
-.main-quick-delete{
-  margin-left:10px;
-  white-space:nowrap;
+.duplicate-card-delete{
+  position:absolute;
+  right:52px;
+  bottom:12px;
+  z-index:4;
+  border:1px solid #dfb0a8;
+  border-radius:10px;
+  background:#fff;
+  color:#a4382c;
+  font-weight:800;
+  padding:7px 10px;
+  cursor:pointer;
 }
-@media(max-width:900px){
-  .main-quick-delete{margin-left:0;margin-top:8px}
+.duplicate-card-delete:hover{background:#fff3f0}
+.group-service-actions{display:flex;align-items:center;gap:12px;justify-content:flex-end}
+.danger-link{color:#a4382c!important}
+@media(max-width:1000px){
+  .duplicate-card-delete{position:static;margin:8px 16px}
 }
