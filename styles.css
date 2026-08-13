@@ -413,3 +413,19 @@ button.is-pressed{
 .nav-item,.filter-chip,.button,button{
   transition:opacity .12s ease,transform .12s ease,background-color .12s ease,border-color .12s ease;
 }
+
+
+/* v3.3.7 — Villa booking payment workflow */
+.editor-guest-name{
+  font:inherit;
+  font-weight:800;
+  color:var(--ink);
+}
+.payment-summary-preview strong{
+  line-height:1.38;
+}
+#balanceDueDateWrap.is-hidden{display:none!important}
+#nextPaymentAmountWrap .money-input-wrap{margin-top:0}
+@media(max-width:760px){
+  .editor-guest-name{display:block;margin-top:4px}
+}

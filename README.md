@@ -31,3 +31,24 @@ Demo 1 v3.3.6 (frozen)
 → Demo 2 v4.x testing
 → final UI/data verification
 → Live v1.0
+
+
+## v3.3.7 — Villa Booking Payment Workflow
+
+This patch updates the villa booking financial workflow without requiring a database migration.
+
+- Hides the redundant **Opening payments received** field.
+- Uses **Deposit paid** as the single initial-payment source of truth.
+- Villa deposit date is automatically the booking-created date.
+- Adds standard villa payment plans:
+  - 50% deposit / balance 30 days before arrival
+  - 50% deposit / balance 60 days before arrival
+  - 25% deposit / balance 30 days before arrival
+  - 25% deposit / balance 60 days before arrival
+  - 40% deposit / 30% further instalment / final balance 30 days before arrival
+  - 40% deposit / 30% further instalment / final balance 60 days before arrival
+- Uses the existing `next_payment_*` fields for the next instalment and `balance_due_date` for the final staged payment, so no schema change is needed.
+- Automatically calculates deposit, remaining balance and 30/60-day final payment dates from the selected plan.
+- Automatically writes the **Payment summary** from the financial fields; standard villa summaries no longer depend on arrangement notes.
+- Shows the guest name in bold beside **Edit Villa Stay** (and the equivalent edit title for other booking types).
+- Existing booking/payment data is preserved.
