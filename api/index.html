@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Marbella Collective OS — Demo 2</title>
+  <meta name="description" content="Marbella Collective bookings and financial dashboard" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="boot" class="boot">Opening Marbella Collective OS…</div>
+
+  <section id="setupView" class="centre-screen hidden"><div class="auth-card"><div class="brand-mark">MC</div><p class="eyebrow">Marbella Collective OS</p><h1>Connection needed</h1><p class="muted">The Supabase environment variables have not been added to this Vercel project.</p><div class="setup-code"><strong>NEXT_PUBLIC_SUPABASE_URL</strong><br><strong>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</strong></div><button id="retryConfig" class="button primary full">Try again</button></div></section>
+
+  <section id="loginView" class="centre-screen hidden">
+    <div class="auth-layout">
+      <div class="auth-intro"><div class="brand-mark large">MC</div><p class="eyebrow">Marbella Collective</p><h1>Your business,<br>all in one place.</h1><p>Bookings, deposits, balances and commission—shared securely between you and Jack.</p></div>
+      <form id="loginForm" class="auth-card"><p class="eyebrow">Secure access</p><h2>Welcome back</h2><p class="muted">Sign in with your Marbella Collective account.</p><label>Email<input id="email" type="email" autocomplete="email" required></label><label>Password<input id="password" type="password" autocomplete="current-password" required></label><button id="loginButton" class="button primary full" type="submit">Sign in</button><div id="loginMessage" class="message"></div></form>
+    </div>
+  </section>
+
+  <section id="resetPasswordView" class="centre-screen hidden">
+    <div class="auth-layout">
+      <div class="auth-intro"><div class="brand-mark large">MC</div><p class="eyebrow">Marbella Collective</p><h1>Choose a new<br>password.</h1><p>Your recovery link is valid. Set a password you will remember for future sign-ins.</p></div>
+      <form id="resetPasswordForm" class="auth-card">
+        <p class="eyebrow">Password recovery</p><h2>Set new password</h2>
+        <p class="muted">Enter your new password twice.</p>
+        <label>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirm password<input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button id="resetPasswordButton" class="button primary full" type="submit">Save new password</button>
+        <div id="resetPasswordMessage" class="message"></div>
+      </form>
+    </div>
+  </section>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div><div class="brand-row"><div class="brand-mark">MC</div><div><strong>Marbella Collective</strong><span>Operating system · Demo 2</span></div></div><nav><button class="nav-item active" data-view="dashboard">Dashboard</button><button class="nav-item" data-view="bookings">Bookings</button><button class="nav-item" data-view="daily">Daily Operations</button><button class="nav-item" data-view="operations">Operations Centre</button><button class="nav-item" data-view="settings">Suppliers</button></nav></div>
+      <div class="sidebar-bottom"><span id="userEmail"></span><button id="logoutButton" class="text-button">Sign out</button></div>
+    </aside>
+    <main class="main">
+      <header class="mobile-header"><div class="brand-row"><div class="brand-mark">MC</div><strong>Marbella Collective</strong></div><button id="mobileNav" class="icon-button">Menu</button></header>
+      <section id="dashboardSection" class="view-section"><div class="page-head"><div><p class="eyebrow">Live business overview</p><h1 id="dashboardGreeting">Good afternoon, Simon.</h1></div><button class="button primary" data-open-booking>Add booking</button></div>
+      <section class="priorities-panel">
+        <div class="priorities-head"><div><p class="eyebrow">Daily operations</p><h2>Today's priorities</h2><p id="prioritySummary">Your most important actions, ordered by urgency.</p></div><div class="priority-head-buttons"><button id="dailyOperationsButton" class="button secondary compact" type="button">Daily operations</button><button id="priorityCount" class="priority-count" type="button">View all priorities</button></div></div>
+        <div id="priorityStats" class="priority-stats"></div>
+        <div id="priorityList" class="priority-list"></div>
+      </section>
+      <div id="metrics" class="metrics"></div><div class="panel"><div class="panel-head"><div><h2>Upcoming arrivals</h2><p>Click any guest to open their complete booking record</p></div><button class="text-button" data-view-button="bookings">View all bookings</button></div><div id="upcomingTable"></div></div></section>
+
+      <section id="dailySection" class="view-section hidden">
+  <div class="page-head"><div><p class="eyebrow">Morning briefing</p><h1 id="dailyOperationsTitle">Daily Operations — Today</h1><p>Your live operating sheet for arrivals, departures, boats, suppliers and money due.</p></div><div class="daily-head-actions">
+      <input id="dailyOperationsDate" type="date">
+      <select id="dailyPeriodSelect" class="filter-select">
+        <option value="today">Today</option>
+        <option value="tomorrow">Tomorrow</option>
+        <option value="week">This week</option>
+        <option value="month">This month</option>
+      </select>
+      <button id="dailyPrintButton" class="button primary">Print / Save PDF</button>
+    </div></div>
+  <div id="dailySummary" class="daily-summary"></div>
+  <div id="dailyOperationsFeed" class="daily-operations-feed"></div>
+</section>
+<section id="operationsSection" class="view-section hidden">
+  <div class="page-head"><div><p class="eyebrow">Live operational diary</p><h1>Operations Centre</h1><p>Every crucial booking milestone, action and deadline in one place.</p></div><button id="closeOperations" class="button secondary">Back to dashboard</button></div>
+  <div class="operations-toolbar">
+    <div class="operations-filter-stack">
+      <div class="operations-filters" id="operationsFilters">
+        <button class="filter-chip active" data-operations-filter="all">All</button><button class="filter-chip" data-operations-filter="action">Action required</button><button class="filter-chip" data-operations-filter="financial">Financial</button><button class="filter-chip" data-operations-filter="villa">Villas</button><button class="filter-chip" data-operations-filter="boat">Boats</button><button class="filter-chip" data-operations-filter="concierge">Concierge</button><button class="filter-chip" data-operations-filter="today">Today</button><button class="filter-chip" data-operations-filter="week">Next 7 days</button><button class="filter-chip" data-operations-filter="overdue">Overdue</button>
+      </div>
+      <div class="operations-time-scope" id="operationsTimeScope">
+        <span>Show</span>
+        <button class="filter-chip active" data-operations-scope="upcoming">Upcoming</button>
+        <button class="filter-chip" data-operations-scope="previous">Previous</button>
+        <button class="filter-chip" data-operations-scope="all">All</button>
+      </div>
+    </div><div class="operations-count" id="operationsCount">0 events</div>
+  </div><div id="operationsFeed" class="operations-feed"></div>
+</section>
+<section id="settingsSection" class="view-section hidden">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Supplier directory</p>
+      <h1>Suppliers</h1>
+      <p class="muted">Manage the approved villas, boats, chefs, musicians and venues used throughout Marbella Collective OS.</p>
+    </div>
+    <button id="addSupplierTypeButton" class="button primary">Add new supplier type</button>
+  </div>
+  <div id="supplierTypeGrid" class="supplier-type-grid"></div>
+</section>
+<section id="bookingsSection" class="view-section hidden"><div class="page-head"><div><p class="eyebrow">Booking management</p><h1>Bookings</h1></div><button class="button primary" data-open-booking>Add booking</button></div><div class="toolbar"><input id="searchInput" class="search" placeholder="Search customer, villa, service or status…"><select id="bookingTypeFilter" class="filter-select"><option value="all">All booking types</option><option value="villa_stay">Villa stays</option><option value="boat_charter">Boat charters</option><option value="private_chef">Private chefs</option><option value="entertainment">Entertainment</option><option value="decorations">Decorations</option><option value="shopping">Shopping</option><option value="beach_club">Beach clubs</option><option value="other">Other</option></select><button id="mergeCustomers" class="button secondary">Merge matching guests</button><button id="exportButton" class="button secondary">Export CSV</button></div><div class="panel"><div id="bookingsTable"></div></div></section>
+    </main>
+  </div>
+
+  <div id="detailPanel" class="detail-panel hidden" aria-hidden="true">
+    <div class="detail-backdrop" data-close-detail></div>
+    <aside class="detail-card">
+      <div class="detail-head"><div><p class="eyebrow">Complete booking record</p><h2 id="detailGuest">Guest</h2><p id="detailSubtitle" class="muted"></p></div><div class="detail-head-actions"><span id="detailStatus" class="badge large">Confirmed</span><button class="icon-button" data-close-detail>Close</button></div></div>
+      <div class="detail-tabs"><button class="detail-tab active" data-detail-tab="customer">Customer</button><button class="detail-tab" data-detail-tab="ai">AI Concierge</button><button class="detail-tab" data-detail-tab="overview">Booking</button><button class="detail-tab" data-detail-tab="payments">Payments</button><button class="detail-tab" data-detail-tab="concierge">Concierge</button><button class="detail-tab" data-detail-tab="timeline">Customer Timeline</button><button class="detail-tab" data-detail-tab="notes">Notes</button></div>
+      <div id="detailContent" class="detail-content"></div>
+      <div class="detail-actions"><button id="detailAddService" class="button primary">Add to itinerary</button><button id="detailAddBoat" class="button secondary hidden">Add to itinerary</button><button id="detailEdit" class="button secondary">Edit booking</button><button class="button primary" data-close-detail>Done</button></div>
+    </aside>
+  </div>
+
+
+  
+<div id="supplierTypeModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close-supplier-type></div>
+  <div class="modal-card supplier-type-modal-card" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div><p class="eyebrow">Supplier directory</p><h2>Add new supplier type</h2><p class="muted">Choose the new category you want to manage.</p></div>
+      <button type="button" class="icon-button" data-close-supplier-type>Close</button>
+    </div>
+    <div class="supplier-type-choice-grid">
+      <button type="button" class="supplier-type-choice" data-new-supplier-type="nightclub"><strong>Nightclub</strong><small>Clubs and late-night venues</small></button>
+      <button type="button" class="supplier-type-choice" data-new-supplier-type="restaurant"><strong>Restaurant</strong><small>Restaurants and dining venues</small></button>
+      <button type="button" class="supplier-type-choice" data-new-supplier-type="beach_club"><strong>Beach club</strong><small>Beach clubs and day venues</small></button>
+    </div>
+  </div>
+</div>
+<div id="bookingWizardModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-booking-wizard></div>
+    <div class="modal-card wizard-card" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+      <div class="modal-head"><div><p class="eyebrow">New booking</p><h2 id="wizardTitle">What sort of booking is this?</h2><p class="muted">Choose one service. The next form will only show the fields needed for that booking.</p></div><button type="button" class="icon-button" data-close-booking-wizard>Close</button></div>
+      <div id="wizardTypeStep" class="wizard-step">
+        <div class="wizard-type-grid">
+          <button type="button" class="wizard-type-card" data-wizard-type="villa_stay"><span>🏡</span><strong>Villa stay</strong><small>Villa, dates, guests, payments and flights</small></button>
+          <button type="button" class="wizard-type-card" data-wizard-type="boat_charter"><span>⛵</span><strong>Boat charter</strong><small>Boat, marina, charter times and pricing</small></button>
+          <button type="button" class="wizard-type-card" data-wizard-type="private_chef"><span>👨‍🍳</span><strong>Private chef</strong><small>Chef, menu, venue and commercial details</small></button>
+          <button type="button" class="wizard-type-card" data-wizard-type="entertainment"><span>🎵</span><strong>Entertainment</strong><small>Performer, venue, timings and pricing</small></button>
+          <button type="button" class="wizard-type-card" data-wizard-type="airport_transfer"><span>🚐</span><strong>Airport transfer</strong><small>Flights, passengers, driver and vehicle</small></button>
+          <button type="button" class="wizard-type-card" data-wizard-type="beach_club"><span>🏖</span><strong>Beach club</strong><small>Venue, beds, guests and minimum spend</small></button>
+          <button type="button" class="wizard-type-card" data-wizard-type="other"><span>✨</span><strong>Other service</strong><small>A simple standalone concierge booking</small></button>
+        </div>
+      </div>
+      <div id="wizardCustomerStep" class="wizard-step hidden">
+        <button type="button" id="wizardBackToTypes" class="workspace-back">← Change booking type</button>
+        <div class="wizard-choice-grid">
+          <button type="button" id="wizardNewCustomer" class="wizard-choice"><strong>New customer</strong><small>Start with blank customer details</small></button>
+          <button type="button" id="wizardExistingCustomer" class="wizard-choice"><strong>Existing customer</strong><small>Find a customer and link this booking to their other bookings</small></button>
+        </div>
+        <div id="wizardCustomerSearchWrap" class="wizard-customer-search hidden">
+          <label>Search existing customers<input id="wizardCustomerSearch" placeholder="Name, email or telephone"></label>
+          <div id="wizardCustomerResults" class="wizard-customer-results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal editor-modal hidden" aria-hidden="true">
+    <form id="bookingForm" class="booking-workspace">
+      <header class="workspace-header">
+        <div><button type="button" class="workspace-back" data-close-modal>← Back to booking</button><p class="eyebrow">Booking management workspace</p><h2 id="modalTitle">Add booking</h2></div>
+        <div id="saveStatus" class="save-status saved" role="status" aria-live="polite"><span class="save-status-dot"></span><span>All changes saved</span></div>
+      </header>
+      <input id="bookingId" type="hidden"><input id="customerId" type="hidden"><input id="itineraryId" type="hidden">
+      <div class="workspace-body">
+        <aside class="workspace-nav">
+          <a href="#guestSection" data-section="guestSection"><span>01</span><b id="navServiceLabel">Service</b></a><a href="#staySection" data-section="staySection"><span>02</span><b id="navCustomerLabel">Customer & stay</b></a><a href="#moneySection" data-section="moneySection"><span>03</span><b>Financial</b></a><a href="#travelSection" data-section="travelSection"><span>04</span><b id="navOperationsLabel">Travel</b></a><a href="#conciergeSection" data-section="conciergeSection"><span>05</span><b>Concierge</b></a>
+        </aside>
+        <div class="workspace-content">
+          <section id="guestSection" class="edit-section"><div class="edit-section-head"><span>01</span><div><p id="serviceEyebrow" class="eyebrow">Booking</p><h3 id="serviceSectionTitle">Booking & customer</h3></div></div><div class="form-grid three-col"><label id="bookingTypeField">Booking type<select id="bookingType" required><option value="villa_stay">Villa stay</option><option value="boat_charter">Boat charter</option><option value="private_chef">Private chef</option><option value="entertainment">Entertainment</option><option value="decorations">Decorations</option><option value="shopping">Shopping</option><option value="beach_club">Beach club</option><option value="other">Other</option></select></label><label id="primaryBoatField" class="is-hidden">Boat<select id="primaryBoatName"><option value="">Select boat</option></select></label><label id="primaryBoatOtherLabel" class="is-hidden">Other boat name<input id="primaryBoatNameOther" placeholder="Enter boat name"></label><label class="system-generated-field is-hidden">Internal title<input id="serviceTitle" readonly placeholder="Generated automatically"></label><label id="serviceDateLabel" class="service-meta-field">Service date<input id="serviceDate" type="date"></label><label id="eventLocationLabel" class="service-meta-field">Event location<select id="eventLocationSelect"><option value="">Select location</option><option>Puerto Banús</option><option>Marbella Marina</option><option>Estepona</option><option>Benalmádena</option><option value="Other">Other…</option></select><input id="eventLocation" class="conditional-input hidden" placeholder="Enter another location"></label><label>Guest name<input id="guestName" required></label><label>Email<input id="guestEmail" type="email"></label><label>Telephone / WhatsApp<input id="guestPhone"></label><label>Instagram<input id="guestInstagram" placeholder="@username"></label><label>Nationality<select id="guestNationalitySelect"><option value="">Select nationality</option><option>British</option><option>Irish</option><option>Spanish</option><option>French</option><option>German</option><option>Dutch</option><option>Belgian</option><option>Italian</option><option>Portuguese</option><option>Swiss</option><option>Swedish</option><option>Norwegian</option><option>Danish</option><option>Finnish</option><option>American</option><option>Canadian</option><option>Australian</option><option>New Zealander</option><option value="Other">Other…</option></select><input id="guestNationality" class="conditional-input hidden" placeholder="Enter another nationality"></label><label>Lead source<select id="leadSource"><option>Marbella Collective</option><option>Marbella Hideaway</option></select></label></div><div id="customerMatchPanel" class="customer-match-panel hidden"></div><div id="linkedCustomerPanel" class="linked-customer-panel hidden"></div></section>
+          <section id="staySection" class="edit-section"><div class="edit-section-head"><span>02</span><div><p class="eyebrow">Stay</p><h3>Villa & guests</h3></div></div><div class="form-grid three-col"><label data-villa-only>Villa<select id="villaName"><option value="">Select villa</option></select></label><label data-villa-only>Arrival date<input id="arrivalDate" type="date"></label><label data-villa-only>Departure date<input id="departureDate" type="date"></label><label>Adults<input id="adultCount" type="number" min="0"></label><label>Children<input id="childCount" type="number" min="0"></label><label>Total guests<input id="guestCount" type="number" min="0" readonly></label><label>Status<select id="bookingStatus"><option>Confirmed</option><option>Lead</option><option>Cancelled</option><option>Completed</option></select></label></div></section>
+          <section id="moneySection" class="edit-section"><div class="edit-section-head"><span>03</span><div><p class="eyebrow">Financial summary</p><h3>Payments & balance</h3></div></div><div class="form-grid three-col"><label>Booking currency<select id="bookingCurrency"><option value="GBP">GBP (£)</option><option value="EUR">EUR (€)</option></select></label><label>Total booking value<div class="money-input-wrap"><span id="totalRentalSymbol">€</span><input id="totalRental" type="number" min="0" step="0.01" required></div></label><input id="depositReceived" type="hidden" value="0"><label id="depositCurrencyWrap">Deposit currency<select id="depositCurrency"><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option></select><small>Boat deposits can be received in either currency.</small></label><label>Deposit paid<div class="money-input-wrap"><span id="depositSymbol">€</span><input id="depositPaid" type="number" min="0" step="0.01" value="0"></div><small>The agreed deposit paid against this booking.</small></label><label>Deposit paid date<input id="depositPaidDate" type="date"><small id="depositDateHelp">Defaults to the booking-created date.</small></label><label id="depositConvertedWrap">Deposit converted<input id="depositConverted" type="text" readonly><small id="depositConvertedHelp">Live GBP/EUR conversion.</small></label><label id="nextPaymentAmountWrap"><span id="nextPaymentAmountLabel">Next payment from guest</span><div class="money-input-wrap"><span id="nextPaymentSymbol">£</span><input id="nextPaymentAmount" type="number" min="0" step="0.01" value="0"></div><small id="nextPaymentHelp">Calculated from the selected payment plan, but can be adjusted if required.</small></label><label id="nextPaymentDueWrap"><span id="nextPaymentDueLabel">Final payment due date</span><input id="nextPaymentDueDate" type="date"><small id="finalPaymentHelp">Calculated from the villa arrival date and selected payment plan.</small></label><label id="fxRateWrap">GBP → EUR exchange rate<div class="inline-field-action"><input id="gbpEurRate" type="number" min="0.0001" step="0.0001" value="1.15"><button id="refreshFxRate" type="button" class="button secondary compact">Refresh live rate</button></div><small id="fxRateStatus">Used for boat payment conversions only.</small></label><label id="finalBalanceGbpWrap">Final balance (GBP)<input id="finalBalanceGbp" type="text" readonly></label><label id="finalBalanceEurWrap">Final balance (EUR)<input id="finalBalanceEur" type="text" readonly></label><label id="paymentStageWrap" class="technical-financial-field">Payment stage<select id="nextPaymentStage"><option value="final_balance">Final balance</option><option value="further_deposit">Further deposit</option><option value="other">Other payment</option></select></label><label class="payment-unified-card">Payment strategy<select id="paymentStrategy">
+      <option value="deposit_50_30">50% deposit, balance 30 days before</option>
+      <option value="deposit_50_60">50% deposit, balance 60 days before</option>
+      <option value="deposit_25_30">25% deposit, balance 30 days before</option>
+      <option value="deposit_25_60">25% deposit, balance 60 days before</option>
+      <option value="staged_40_30_30">40% deposit, then 30%, final balance 30 days before</option>
+      <option value="staged_40_30_60">40% deposit, then 30%, final balance 60 days before</option>
+      <option value="fully_paid">Fully paid</option>
+      <option value="custom">Custom arrangement</option>
+    </select></label><label class="span-2 payment-unified-card">Payment arrangement notes<textarea id="paymentStrategyNotes" rows="3" placeholder="Only use this for an exception or special agreement that is not covered by the payment plan above."></textarea></label><label class="span-3 payment-summary-preview payment-unified-card"><span>Payment summary</span><strong id="paymentSummaryPreview">No payment plan recorded.</strong><small>Generated automatically from the booking value, deposit and payment schedule.</small><button id="managePaymentsButton" type="button" class="button secondary compact manage-payments-button">Manage payments</button></label><label>Supplier payment due<div class="money-input-wrap"><span>€</span><input id="supplierAmountOwed" type="number" min="0" step="0.01" value="0"></div></label><label id="supplierCurrencyWrap">Supplier payment currency<select id="supplierCurrency"><option value="GBP">GBP (£)</option><option value="EUR">EUR (€)</option></select></label><label id="balanceDueDateWrap" class="is-hidden"><span>Final payment due date</span><input id="balanceDueDate" type="date"><small>Used for staged villa payment plans.</small></label><label>Commission type<select id="commissionType"><option value="percentage">Percentage</option><option value="fixed">Fixed amount</option></select></label><label id="commissionRateLabel">Commission rate (%)<select id="commissionRateSelect"><option value="10">10%</option><option value="12">12%</option><option value="20">20%</option><option value="Other">Other…</option></select><input id="commissionRate" class="conditional-input hidden" type="number" min="0" step="0.1" placeholder="Custom %"></label><label id="commissionFixedLabel" class="is-hidden">Commission amount<input id="commissionFixedAmount" type="number" min="0" step="0.01" placeholder="Exact commission"></label><label>Commission currency<select id="commissionCurrency"><option value="GBP">GBP (£)</option><option value="EUR">EUR (€)</option></select></label><label>Damage deposit<input id="damageDeposit" type="number" min="0" step="0.01" value="0"></label></div></section>
+          <section id="travelSection" class="edit-section"><div class="edit-section-head"><span>04</span><div><p class="eyebrow">Travel plan</p><h3>Flights and times</h3></div></div><div class="form-grid three-col"><label>Arrival flight<input id="arrivalFlight" placeholder="e.g. BA412"></label><label>Arrival airport<select id="arrivalAirportSelect"><option value="Málaga">Málaga</option><option value="Other">Other…</option></select><input id="arrivalAirport" class="conditional-input hidden" placeholder="Enter another airport"></label><label>Arrival time<input id="arrivalTime" type="time"></label><label>Departure flight<input id="departureFlight"></label><label>Departure airport<select id="departureAirportSelect"><option value="Málaga">Málaga</option><option value="Other">Other…</option></select><input id="departureAirport" class="conditional-input hidden" placeholder="Enter another airport"></label><label>Departure time<input id="departureTime" type="time"></label><label class="span-three">Travel notes<input id="flightDetails" placeholder="Terminal, luggage or meeting-point details"></label></div></section>
+          <section id="conciergeSection" class="edit-section"><div class="edit-section-head"><span>05</span><div><p class="eyebrow">Guest experience</p><h3>Concierge services</h3></div></div>
+            <div class="module-divider"><span>Boat charter</span></div>
+            <div class="boat-status-row boat-status-simple"><label>Boat status<select id="boatStatus"><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option></select></label></div>
+            <div class="boat-editor-grid">
+              <div class="boat-editor-card boat-trip-landscape"><p class="eyebrow">Charter</p><h4>Trip details</h4><div class="form-grid two-col"><label>Boat<select id="boatName"><option value="">Select boat</option></select></label><label id="boatOtherLabel" class="is-hidden">Other boat name<input id="boatNameOther" placeholder="Enter boat name"></label><label>Departure marina<input id="boatMarina" placeholder="Puerto Banús"></label><label>Date<input id="boatDate" type="date"></label><label>Start time<input id="boatStartTime" type="time"></label><label>Duration (hours)<input id="boatDuration" type="number" min="0" step="0.5"></label><label>Guests<input id="boatGuests" type="number" min="0"></label></div></div>
+              <div class="boat-editor-card boat-hidden-compat hidden" aria-hidden="true"><input id="boatCurrency" value="EUR"><input id="boatSupplierCost" type="number"><input id="boatSellingPrice" type="number"><input id="boatDepositPaid" type="number"><input id="boatAmountPaid" type="number"><input id="boatBalance"><input id="boatMargin"><input id="boatSupplier"><input id="boatReference"></div>
+            </div>
+            <label class="full-field">Boat charter notes<textarea id="boatNotes" rows="4" placeholder="Route, catering, drinks, special requests and meeting point"></textarea></label>
+            <div class="module-divider"><span>Private chef</span></div>
+            <div class="service-status-row"><label>Chef status<select id="chefStatus"><option value="not_booked">Not booked</option><option value="enquiry">Enquiry</option><option value="awaiting_menu">Awaiting menu</option><option value="provisional">Provisional</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Event type<select id="chefEventType"><option value="">Select</option><option>Breakfast</option><option>Brunch</option><option>Lunch</option><option>BBQ</option><option>Dinner</option><option>Paella</option><option>Cocktail party</option></select></label><label>Reference<input id="chefReference"></label></div>
+            <div class="service-editor-grid">
+              <div class="service-editor-card"><p class="eyebrow">Experience</p><h4>Event details</h4><div class="form-grid two-col"><label>Date<input id="chefDate" type="date"></label><label>Time<input id="chefTime" type="time"></label><label>Guests<input id="chefGuests" type="number" min="0"></label><label>Drinks package<input id="chefDrinks" placeholder="Included, optional or none"></label><label class="span-two">Menu<textarea id="chefMenu" rows="4" placeholder="Menu, courses and service style"></textarea></label><label class="span-two">Dietary requirements<textarea id="chefDietary" rows="3" placeholder="Allergies, vegan, vegetarian and dislikes"></textarea></label></div></div>
+              <div class="service-editor-card"><p class="eyebrow">Supplier</p><h4>Chef & commercial</h4><div class="form-grid two-col"><label>Currency<select id="chefCurrency"><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option></select></label><label></label><label>Supplier<input id="chefSupplier" placeholder="Company or chef business"></label><label>Assigned chef<input id="chefName"></label><label class="span-two">Contact<input id="chefContact" placeholder="Telephone, WhatsApp or email"></label><label>Supplier cost<input id="chefSupplierCost" type="number" min="0" step="0.01"></label><label>Selling price<input id="chefSellingPrice" type="number" min="0" step="0.01"></label><label>Deposit paid<input id="chefDepositPaid" type="number" min="0" step="0.01"></label><label>Total paid<input id="chefAmountPaid" type="number" min="0" step="0.01"></label><label>Balance<input id="chefBalance" disabled></label><label>Gross margin<input id="chefMargin" disabled></label></div></div>
+            </div>
+            <label class="full-field">Private chef notes<textarea id="chefNotes" rows="4" placeholder="Setup, timings, equipment, service team and special requests"></textarea></label>
+
+            <div class="module-divider"><span>Decorations</span></div>
+            <div class="service-status-row"><label>Status<select id="decorStatus"><option value="not_booked">Not booked</option><option value="enquiry">Enquiry</option><option value="provisional">Provisional</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Theme<input id="decorTitle" placeholder="Hen party, birthday or proposal"></label><label>Reference<input id="decorReference"></label></div>
+            <div class="service-editor-grid"><div class="service-editor-card"><p class="eyebrow">Setup</p><h4>Decoration details</h4><div class="form-grid two-col"><label>Delivery date<input id="decorDate" type="date"></label><label>Setup time<input id="decorTime" type="time"></label><label>Supplier<input id="decorSupplier"></label><label>Contact<input id="decorContact"></label><label class="span-two">Items & setup<textarea id="decorDetails" rows="4" placeholder="Balloons, welcome sign, LED sign, cake, champagne tower..."></textarea></label></div></div><div class="service-editor-card"><p class="eyebrow">Commercial</p><h4>Pricing</h4><div class="form-grid two-col"><label>Supplier cost<input id="decorCost" type="number" min="0" step="0.01"></label><label>Selling price<input id="decorSell" type="number" min="0" step="0.01"></label><label>Total paid<input id="decorPaid" type="number" min="0" step="0.01"></label><label>Balance<input id="decorBalance" disabled></label><label class="span-two">Notes<textarea id="decorNotes" rows="4"></textarea></label></div></div></div>
+
+            <div class="module-divider"><span>Shopping</span></div>
+            <div class="service-status-row"><label>Status<select id="shopStatus"><option value="not_booked">Not booked</option><option value="awaiting_list">Awaiting list</option><option value="ordered">Ordered</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label><label>Supermarket / supplier<input id="shopTitle" placeholder="Mercadona, El Corte Inglés..."></label><label>Shopper<input id="shopSupplier"></label></div>
+            <div class="service-editor-grid"><div class="service-editor-card"><p class="eyebrow">Delivery</p><h4>Shopping order</h4><div class="form-grid two-col"><label>Delivery date<input id="shopDate" type="date"></label><label>Delivery time<input id="shopTime" type="time"></label><label>Contact<input id="shopContact"></label><label>Reference<input id="shopReference"></label><label class="span-two">Shopping list<textarea id="shopDetails" rows="6" placeholder="Food, drinks, breakfast, snacks and special requests"></textarea></label></div></div><div class="service-editor-card"><p class="eyebrow">Commercial</p><h4>Order value</h4><div class="form-grid two-col"><label>Supplier cost<input id="shopCost" type="number" min="0" step="0.01"></label><label>Selling price<input id="shopSell" type="number" min="0" step="0.01"></label><label>Total paid<input id="shopPaid" type="number" min="0" step="0.01"></label><label>Balance<input id="shopBalance" disabled></label><label class="span-two">Notes<textarea id="shopNotes" rows="4"></textarea></label></div></div></div>
+
+            <div class="module-divider"><span>Restaurant reservations</span></div>
+            <p class="muted module-intro">Record up to three reservations for this booking.</p>
+            <div class="restaurant-editor-list">
+              <div class="restaurant-slot" data-restaurant-slot="1"><strong>Reservation 1</strong><div class="form-grid four-col"><label>Status<select id="restaurant1Status"><option value="not_booked">Not booked</option><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Restaurant<input id="restaurant1Title"></label><label>Date<input id="restaurant1Date" type="date"></label><label>Time<input id="restaurant1Time" type="time"></label><label>Guests<input id="restaurant1Guests" type="number" min="0"></label><label>Deposit (€)<input id="restaurant1Paid" type="number" min="0" step="0.01"></label><label>Confirmation<input id="restaurant1Reference"></label><label>Contact<input id="restaurant1Contact"></label><label class="span-four">Notes<input id="restaurant1Notes" placeholder="Table request, occasion, allergies or dress code"></label></div></div>
+              <div class="restaurant-slot" data-restaurant-slot="2"><strong>Reservation 2</strong><div class="form-grid four-col"><label>Status<select id="restaurant2Status"><option value="not_booked">Not booked</option><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Restaurant<input id="restaurant2Title"></label><label>Date<input id="restaurant2Date" type="date"></label><label>Time<input id="restaurant2Time" type="time"></label><label>Guests<input id="restaurant2Guests" type="number" min="0"></label><label>Deposit (€)<input id="restaurant2Paid" type="number" min="0" step="0.01"></label><label>Confirmation<input id="restaurant2Reference"></label><label>Contact<input id="restaurant2Contact"></label><label class="span-four">Notes<input id="restaurant2Notes"></label></div></div>
+              <div class="restaurant-slot" data-restaurant-slot="3"><strong>Reservation 3</strong><div class="form-grid four-col"><label>Status<select id="restaurant3Status"><option value="not_booked">Not booked</option><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Restaurant<input id="restaurant3Title"></label><label>Date<input id="restaurant3Date" type="date"></label><label>Time<input id="restaurant3Time" type="time"></label><label>Guests<input id="restaurant3Guests" type="number" min="0"></label><label>Deposit (€)<input id="restaurant3Paid" type="number" min="0" step="0.01"></label><label>Confirmation<input id="restaurant3Reference"></label><label>Contact<input id="restaurant3Contact"></label><label class="span-four">Notes<input id="restaurant3Notes"></label></div></div>
+            </div>
+
+            <div class="module-divider"><span>Beach club</span></div>
+            <div class="service-status-row"><label>Status<select id="beachStatus"><option value="not_booked">Not booked</option><option value="requested">Requested</option><option value="provisional">Provisional</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Venue<input id="beachTitle" placeholder="Ocean Club, Naô, La Sala..."></label><label>Confirmation<input id="beachReference"></label></div>
+            <div class="service-editor-grid"><div class="service-editor-card"><p class="eyebrow">Reservation</p><h4>Beach club details</h4><div class="form-grid two-col"><label>Date<input id="beachDate" type="date"></label><label>Arrival time<input id="beachTime" type="time"></label><label>Guests<input id="beachGuests" type="number" min="0"></label><label>Beds / table<input id="beachDetails"></label><label>Contact<input id="beachContact"></label><label>Supplier<input id="beachSupplier"></label></div></div><div class="service-editor-card"><p class="eyebrow">Commercial</p><h4>Minimum spend</h4><div class="form-grid two-col"><label>Supplier cost<input id="beachCost" type="number" min="0" step="0.01"></label><label>Selling price<input id="beachSell" type="number" min="0" step="0.01"></label><label>Deposit paid<input id="beachPaid" type="number" min="0" step="0.01"></label><label>Balance<input id="beachBalance" disabled></label><label class="span-two">Notes<textarea id="beachNotes" rows="4"></textarea></label></div></div></div>
+
+            <div class="module-divider"><span>Entertainment</span></div>
+            <div class="service-status-row"><label>Status<select id="entStatus"><option value="not_booked">Not booked</option><option value="enquiry">Enquiry</option><option value="quoted">Quoted</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><label>Experience<select id="entTitle"><option value="">Select</option><option>DJ</option><option>Saxophonist</option><option>Singer</option><option>Butler</option><option>Cocktail class</option><option>Dance class</option><option>Photographer</option><option>Videographer</option><option>Magician</option><option>Other</option></select></label><label>Reference<input id="entReference"></label></div>
+            <div class="service-editor-grid"><div class="service-editor-card"><p class="eyebrow">Event</p><h4>Entertainment details</h4><div class="form-grid two-col"><label>Date<input id="entDate" type="date"></label><label>Time<input id="entTime" type="time"></label><label>Guests<input id="entGuests" type="number" min="0"></label><label>Supplier<input id="entSupplier"></label><label>Contact<input id="entContact"></label><label>Details<input id="entDetails" placeholder="Duration, equipment or set times"></label></div></div><div class="service-editor-card"><p class="eyebrow">Commercial</p><h4>Pricing</h4><div class="form-grid two-col"><label>Supplier cost<input id="entCost" type="number" min="0" step="0.01"></label><label>Selling price<input id="entSell" type="number" min="0" step="0.01"></label><label>Total paid<input id="entPaid" type="number" min="0" step="0.01"></label><label>Balance<input id="entBalance" disabled></label><label class="span-two">Notes<textarea id="entNotes" rows="4"></textarea></label></div></div></div>
+          
+            <div class="module-divider"><span>Internal notes</span></div>
+            <div class="internal-notes-block"><label>Internal notes<textarea id="bookingNotes" rows="6" placeholder="Anything Simon and Jack need to remember about this booking"></textarea></label></div>
+          </section>
+          <div id="bookingMessage" class="message"></div>
+        </div>
+      </div>
+      <footer class="workspace-footer"><button id="deleteBookingButton" type="button" class="button danger-outline hidden" onclick="event.preventDefault();event.stopPropagation();openDeleteConfirm(document.getElementById('bookingId').value);">Delete booking</button><span>Changes update the dashboard, booking record and operational tasks immediately.</span><div><button type="button" class="button secondary" data-close-modal>Cancel</button><button id="saveBooking" class="button primary" type="submit">Save booking</button></div></footer>
+    </form>
+  </div>
+
+  <div id="deleteConfirmModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-delete-confirm></div>
+    <div class="modal-card confirm-card" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
+      <div class="modal-head"><div><p class="eyebrow danger-text">Permanent action</p><h2 id="deleteConfirmTitle">Delete booking?</h2><p id="deleteConfirmSummary" class="muted"></p></div></div>
+      <div class="confirm-body"><p>This will permanently remove the booking and all linked payments, transfers, boats, chefs and guest-experience records.</p><p><strong>This action cannot be undone.</strong></p><div id="deleteConfirmMessage" class="message"></div></div>
+      <div class="confirm-actions"><button type="button" class="button secondary" data-close-delete-confirm>Cancel</button><button id="confirmDeleteBooking" type="button" class="button danger">Delete booking</button></div>
+    </div>
+  </div>
+
+  <div id="duplicateWarningModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-duplicate></div>
+    <div class="modal-card confirm-card" role="dialog" aria-modal="true" aria-labelledby="duplicateTitle">
+      <div class="modal-head"><div><p class="eyebrow">Possible duplicate</p><h2 id="duplicateTitle">A similar booking already exists</h2><p id="duplicateSummary" class="muted"></p></div></div>
+      <div class="confirm-body"><p>Open the existing booking, create another booking anyway, or return to the form.</p></div>
+      <div class="confirm-actions three-actions"><button type="button" class="button secondary" data-close-duplicate>Cancel</button><button id="createDuplicateAnyway" type="button" class="button secondary">Create anyway</button><button id="openExistingDuplicate" type="button" class="button primary">Open existing</button></div>
+    </div>
+  </div>
+
+  <div id="paymentModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-payment></div>
+    <form id="paymentForm" class="modal-card payment-modal-card">
+      <div class="modal-head"><div><p class="eyebrow">Payment transaction</p><h2>Record payment</h2><p id="paymentGuest" class="muted"></p></div><button type="button" class="icon-button" data-close-payment>Close</button></div>
+      <input id="paymentBookingId" type="hidden">
+      <div class="form-grid payment-form-grid">
+        <label>Payment date<input id="paymentDate" type="date" required></label>
+        <label>Type<select id="paymentType" required><option value="deposit">Deposit</option><option value="balance">Balance payment</option><option value="damage_deposit">Damage deposit</option><option value="refund">Refund</option><option value="other">Other</option></select></label>
+        <label>Currency<select id="paymentCurrency"><option value="GBP">GBP (£)</option><option value="EUR">EUR (€)</option></select></label><label>Amount<input id="paymentAmount" type="number" min="0.01" step="0.01" required></label>
+        <label>Method<select id="paymentMethod" required><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label>
+        <label>Reference<input id="paymentReference" placeholder="Bank reference or receipt number"></label>
+        <label class="span-two">Notes<textarea id="paymentNotes" rows="3" placeholder="Optional internal note"></textarea></label>
+      </div>
+      <div id="paymentMessage" class="message"></div>
+      <div class="modal-actions"><button type="button" class="button secondary" data-close-payment>Cancel</button><button id="savePayment" class="button primary" type="submit">Save payment</button></div>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
