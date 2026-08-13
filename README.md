@@ -106,3 +106,12 @@ This patch updates the villa booking financial workflow without requiring a data
 - Pairs such as **Grace / Grace Rathbone** and **Kelly / Kellie Beattie** now sit directly one above the other for easy comparison.
 - The existing duplicate warning and Delete duplicate controls are unchanged.
 - No Supabase migration is required.
+
+
+## v3.3.14 — Duplicate cluster & delete-button fix
+
+- Fixes duplicate sorting so every suspected duplicate cluster is truly contiguous.
+- **Dylan / Dylan Beeson**, **Sophie / Sophie Revell**, **Grace / Grace Rathbone**, and similar matches now sit directly together.
+- The more established record in a duplicate pair is shown first where possible.
+- Replaces fragile inline delete handlers with a delegated click handler, fixing the **Delete duplicate** and expanded **Delete booking** buttons.
+- No Supabase migration is required.

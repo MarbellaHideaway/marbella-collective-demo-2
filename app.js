@@ -1295,7 +1295,7 @@ function groupServicesHtml(group){
     <span>${money(b.total_rental,bookingCurrency(b))}</span>
     <div class="group-service-actions">
       <button class="link-button" onclick="openDetail('${b.id}')">Open</button>
-      <button class="link-button danger-link" onclick="event.stopPropagation();openDeleteConfirm('${b.id}','main')">Delete booking</button>
+      <button type="button" class="link-button danger-link" data-delete-duplicate-booking="${esc(b.id)}">Delete booking</button>
     </div>
   </div>`).join('');
 }
@@ -1305,38 +1305,58 @@ function groupedBookingsHtml(groups){
   // Keep suspected duplicates adjacent so they are easy to compare before deleting.
   // Duplicate clusters sort ahead of ordinary rows, then retain their existing booking date order.
   const originalIndex=new Map(groups.map((g,i)=>[g.key,i]));
-  const duplicateClusterCounts=new Map();
+  const groupClusterKey=new Map();
+  const clusterMembers=new Map();
+
   groups.forEach(g=>{
     const key=duplicateClusterKey(g.guest_name,groups);
-    duplicateClusterCounts.set(key,(duplicateClusterCounts.get(key)||0)+1);
+    groupClusterKey.set(g.key,key);
+    if(!clusterMembers.has(key))clusterMembers.set(key,[]);
+    clusterMembers.get(key).push(g);
   });
+
+  const clusterRank=new Map();
+  const duplicateClusterCounts=new Map();
+  clusterMembers.forEach((members,key)=>{
+    duplicateClusterCounts.set(key,members.length);
+    clusterRank.set(key,Math.min(...members.map(g=>originalIndex.get(g.key)??999999)));
+  });
+
   const orderedGroups=groups.slice().sort((a,b)=>{
-    const ak=duplicateClusterKey(a.guest_name,groups);
-    const bk=duplicateClusterKey(b.guest_name,groups);
+    const ak=groupClusterKey.get(a.key);
+    const bk=groupClusterKey.get(b.key);
     const ad=(duplicateClusterCounts.get(ak)||0)>1;
     const bd=(duplicateClusterCounts.get(bk)||0)>1;
 
-    // Duplicate clusters come first, but preserve relative date order between clusters.
+    // Duplicate clusters first.
     if(ad!==bd)return ad?-1:1;
 
-    if(ak!==bk){
-      const ai=originalIndex.get(a.key)??0;
-      const bi=originalIndex.get(b.key)??0;
-      return ai-bi;
+    // Crucially, rank the WHOLE cluster by its earliest original position.
+    // This guarantees all members of Dylan/Dylan Beeson, Sophie/Sophie Revell etc.
+    // sit directly beside each other instead of being separated by another cluster.
+    const ar=clusterRank.get(ak)??(originalIndex.get(a.key)??0);
+    const br=clusterRank.get(bk)??(originalIndex.get(b.key)??0);
+    if(ar!==br)return ar-br;
+
+    // Within the same cluster, keep the fuller/more established record first,
+    // then use the original order for stability.
+    if(ak===bk){
+      const bookingDiff=(b.bookings?.length||0)-(a.bookings?.length||0);
+      if(bookingDiff)return bookingDiff;
+      const contactA=Number(Boolean(a.email||a.phone));
+      const contactB=Number(Boolean(b.email||b.phone));
+      if(contactA!==contactB)return contactB-contactA;
+      return (originalIndex.get(a.key)??0)-(originalIndex.get(b.key)??0);
     }
 
-    // Inside the same suspected duplicate cluster, keep names together and stable.
-    const an=normaliseCustomerValue(a.guest_name);
-    const bn=normaliseCustomerValue(b.guest_name);
-    const byName=an.localeCompare(bn);
-    return byName || ((originalIndex.get(a.key)??0)-(originalIndex.get(b.key)??0));
+    return (originalIndex.get(a.key)??0)-(originalIndex.get(b.key)??0);
   });
 
   return `<div class="grouped-bookings">${orderedGroups.map(group=>{
     const p=group.primary,next=group.next_payment;
     const duplicate=groups.find(other=>other.key!==group.key && potentialDuplicateCustomerName(group.guest_name,other.guest_name));
     const quickDelete=duplicate && group.bookings.length===1
-      ? `<button type="button" class="duplicate-card-delete" onclick="event.stopPropagation();openDeleteConfirm('${group.bookings[0].id}','main')">Delete duplicate</button>`
+      ? `<button type="button" class="duplicate-card-delete" data-delete-duplicate-booking="${esc(group.bookings[0].id)}">Delete duplicate</button>`
       : '';
     const duplicateNote=duplicate
       ? `<span class="booking-duplicate-warning">Possible duplicate of ${esc(duplicate.guest_name)}</span>`
@@ -2523,6 +2543,16 @@ $('wizardBackToTypes')?.addEventListener('click',()=>{$('wizardCustomerStep').cl
 $('wizardNewCustomer')?.addEventListener('click',()=>startWizardBooking());
 $('wizardExistingCustomer')?.addEventListener('click',()=>{$('wizardCustomerSearchWrap').classList.remove('hidden');renderWizardCustomers();$('wizardCustomerSearch').focus();});
 $('wizardCustomerSearch')?.addEventListener('input',renderWizardCustomers);
+
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('[data-delete-duplicate-booking]');
+  if(!btn)return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id=btn.dataset.deleteDuplicateBooking;
+  if(id)window.openDeleteConfirm(id,'main');
+});
+
 $('wizardCustomerResults')?.addEventListener('click',e=>{
   const del=e.target.closest('[data-delete-wizard-booking]');
   if(del){
