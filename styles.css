@@ -578,3 +578,36 @@ button.is-pressed{
 @media(max-width:1000px){
   .duplicate-card-delete{position:static;margin:8px 16px}
 }
+
+
+/* v3.3.15 — reliable duplicate actions */
+.duplicate-review-actions{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:8px;
+  padding:0 16px 12px;
+  background:#fffdf7;
+}
+.duplicate-card-delete,
+.duplicate-card-ignore{
+  position:static!important;
+  margin:0!important;
+  z-index:auto!important;
+  border-radius:10px;
+  font-weight:800;
+  padding:8px 12px;
+  cursor:pointer;
+}
+.duplicate-card-delete{
+  border:1px solid #dfb0a8;
+  background:#fff;
+  color:#a4382c;
+}
+.duplicate-card-delete:hover{background:#fff3f0}
+.duplicate-card-ignore{
+  border:1px solid #cfd6cf;
+  background:#fff;
+  color:#194b3e;
+}
+.duplicate-card-ignore:hover{background:#f2f7f4}

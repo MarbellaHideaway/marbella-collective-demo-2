@@ -115,3 +115,12 @@ This patch updates the villa booking financial workflow without requiring a data
 - The more established record in a duplicate pair is shown first where possible.
 - Replaces fragile inline delete handlers with a delegated click handler, fixing the **Delete duplicate** and expanded **Delete booking** buttons.
 - No Supabase migration is required.
+
+
+## v3.3.15 — Reliable duplicate actions + Ignore
+
+- Moves duplicate actions out of the clickable booking header so the controls no longer compete with the expand/collapse button.
+- **Delete duplicate** now uses a direct, native confirmation flow and then deletes the selected booking.
+- Adds **Ignore** beside every suspected duplicate pair.
+- Ignore persists in Supabase using `bookings.duplicate_review_ignored`, so reviewed legitimate bookings stop being flagged after refresh.
+- Run `supabase/031_duplicate_review_ignore.sql` before testing Ignore.

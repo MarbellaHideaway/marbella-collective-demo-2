@@ -1295,7 +1295,7 @@ function groupServicesHtml(group){
     <span>${money(b.total_rental,bookingCurrency(b))}</span>
     <div class="group-service-actions">
       <button class="link-button" onclick="openDetail('${b.id}')">Open</button>
-      <button type="button" class="link-button danger-link" data-delete-duplicate-booking="${esc(b.id)}">Delete booking</button>
+      <button type="button" class="link-button danger-link" data-quick-delete-duplicate="${esc(b.id)}">Delete booking</button>
     </div>
   </div>`).join('');
 }
@@ -1354,9 +1354,17 @@ function groupedBookingsHtml(groups){
 
   return `<div class="grouped-bookings">${orderedGroups.map(group=>{
     const p=group.primary,next=group.next_payment;
-    const duplicate=groups.find(other=>other.key!==group.key && potentialDuplicateCustomerName(group.guest_name,other.guest_name));
-    const quickDelete=duplicate && group.bookings.length===1
-      ? `<button type="button" class="duplicate-card-delete" data-delete-duplicate-booking="${esc(group.bookings[0].id)}">Delete duplicate</button>`
+    const groupIgnored=(group.bookings||[]).some(b=>b.duplicate_review_ignored===true);
+    const duplicate=groupIgnored?null:groups.find(other=>{
+      if(other.key===group.key)return false;
+      if((other.bookings||[]).some(b=>b.duplicate_review_ignored===true))return false;
+      return potentialDuplicateCustomerName(group.guest_name,other.guest_name);
+    });
+    const duplicateActions=duplicate
+      ? `<div class="duplicate-review-actions">
+          ${group.bookings.length===1?`<button type="button" class="duplicate-card-delete" data-quick-delete-duplicate="${esc(group.bookings[0].id)}">Delete duplicate</button>`:''}
+          <button type="button" class="duplicate-card-ignore" data-ignore-duplicate-group="${esc(group.key)}" data-ignore-match-group="${esc(duplicate.key)}">Ignore</button>
+        </div>`
       : '';
     const duplicateNote=duplicate
       ? `<span class="booking-duplicate-warning">Possible duplicate of ${esc(duplicate.guest_name)}</span>`
@@ -1374,7 +1382,7 @@ function groupedBookingsHtml(groups){
         <span><small>Next payment</small><strong>${next?money(nextPaymentAmountFor(next),nextPaymentCurrencyFor(next)):'—'}</strong>${nextPaymentDateFor(next)?`<small>${date(nextPaymentDateFor(next))}</small>`:''}</span>
         <span class="expand-chevron">⌄</span>
       </button>
-      ${quickDelete}
+      ${duplicateActions}
       <div class="guest-itinerary-body">
         <div class="group-summary-strip">
           <div><span>Itinerary commission</span><strong>${groupCurrencySummary(group,b=>commissionFor(b),b=>commissionCurrency(b))}</strong></div>
@@ -1946,6 +1954,84 @@ window.editBooking=id=>{
     alert(`The booking editor could not be opened: ${error?.message||'Unknown error'}`);
   }
 };
+
+async function deleteBookingRecordDirect(id){
+  const deleting=bookings.find(x=>String(x.id)===String(id));
+  if(!deleting)throw new Error('This booking could not be found. Please refresh and try again.');
+
+  // Keep the audit log best-effort only.
+  try{
+    await supabaseClient.from('booking_deletion_log').insert({
+      booking_id:id,
+      guest_name:deleting.guest_name,
+      booking_type:deleting.booking_type,
+      resource:bookingDisplayPlace(deleting),
+      booking_date:bookingPrimaryDate(deleting),
+      details:{
+        dates:bookingDisplayDates(deleting),
+        customer_id:deleting.customer_id,
+        itinerary_id:deleting.itinerary_id
+      }
+    });
+  }catch(_){}
+
+  for(const table of ['booking_payments','booking_transfers','booking_boats','booking_chefs','booking_experiences']){
+    try{
+      const{error}=await supabaseClient.from(table).delete().eq('booking_id',id);
+      if(error && error.code!=='42P01')throw error;
+    }catch(error){
+      // Missing legacy child tables are harmless; real permission/data errors are not.
+      if(error?.code && error.code!=='42P01')throw error;
+    }
+  }
+
+  const{error}=await supabaseClient.from('bookings').delete().eq('id',id);
+  if(error)throw error;
+}
+
+window.quickDeleteDuplicate=async function(id){
+  const b=bookings.find(x=>String(x.id)===String(id));
+  if(!b)return;
+  const ok=window.confirm(`Delete this booking only?\n\n${b.guest_name} • ${bookingDisplayPlace(b)} • ${bookingDisplayDates(b)}\n\nThis permanently deletes this booking but does not delete the customer's other bookings.`);
+  if(!ok)return;
+
+  try{
+    await deleteBookingRecordDirect(id);
+    if(selectedBooking&&String(selectedBooking.id)===String(id)){selectedBooking=null;closeDetail();}
+    await loadData();
+    switchView('bookings');
+  }catch(error){
+    console.error('Delete booking failed',error);
+    window.alert(`The booking could not be deleted: ${error?.message||'Unknown error'}`);
+  }
+};
+
+window.ignoreDuplicatePair=async function(groupKey,matchKey){
+  const groups=customerGroups();
+  const a=groups.find(g=>g.key===groupKey);
+  const b=groups.find(g=>g.key===matchKey);
+  if(!a||!b)return;
+
+  const ids=[...(a.bookings||[]),...(b.bookings||[])].map(x=>x.id).filter(Boolean);
+  if(!ids.length)return;
+
+  try{
+    const{error}=await supabaseClient
+      .from('bookings')
+      .update({duplicate_review_ignored:true})
+      .in('id',ids);
+    if(error)throw error;
+    ids.forEach(id=>{
+      const row=bookings.find(x=>String(x.id)===String(id));
+      if(row)row.duplicate_review_ignored=true;
+    });
+    renderBookings();
+  }catch(error){
+    console.error('Ignore duplicate failed',error);
+    window.alert(`Could not ignore this duplicate warning: ${error?.message||'Unknown error'}`);
+  }
+};
+
 window.openDeleteConfirm=function(id,context=null){
   const b=bookings.find(x=>String(x.id)===String(id));if(!b)return;
   pendingDeleteId=id;pendingDeleteContext=context;
@@ -2545,12 +2631,24 @@ $('wizardExistingCustomer')?.addEventListener('click',()=>{$('wizardCustomerSear
 $('wizardCustomerSearch')?.addEventListener('input',renderWizardCustomers);
 
 document.addEventListener('click',e=>{
-  const btn=e.target.closest('[data-delete-duplicate-booking]');
-  if(!btn)return;
-  e.preventDefault();
-  e.stopPropagation();
-  const id=btn.dataset.deleteDuplicateBooking;
-  if(id)window.openDeleteConfirm(id,'main');
+  const deleteBtn=e.target.closest('[data-quick-delete-duplicate]');
+  if(deleteBtn){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const id=deleteBtn.dataset.quickDeleteDuplicate;
+    if(id)window.quickDeleteDuplicate(id);
+    return;
+  }
+
+  const ignoreBtn=e.target.closest('[data-ignore-duplicate-group]');
+  if(ignoreBtn){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.ignoreDuplicatePair(
+      ignoreBtn.dataset.ignoreDuplicateGroup,
+      ignoreBtn.dataset.ignoreMatchGroup
+    );
+  }
 });
 
 $('wizardCustomerResults')?.addEventListener('click',e=>{
