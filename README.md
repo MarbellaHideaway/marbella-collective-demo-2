@@ -132,3 +132,15 @@ This patch updates the villa booking financial workflow without requiring a data
 - Ignoring is **pair-specific**: ignoring `Lucy / Lucy Partridge` does not also suppress a separate `Lucy / Lucy Kirk` warning.
 - Ignored pairs persist in this browser using local storage and disappear from duplicate clustering immediately.
 - No Supabase SQL is required for this patch.
+
+
+## v3.3.17 — Automatic Archives
+
+- Completed bookings are automatically removed from all live operational views once their final service date is before today.
+- Villa stays archive after the **departure date**.
+- Boat charters archive after the **sailing date**.
+- Private chefs and other services archive after their **event/service date**.
+- Archived records no longer appear in Bookings, Dashboard, Daily Operations or Operations Centre.
+- Adds a dedicated **Archives** item beneath Bookings in the sidebar.
+- Archives can be searched and filtered by booking type, and historic booking records can still be opened.
+- Archiving is date-driven; no Supabase migration is required.

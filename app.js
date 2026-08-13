@@ -3,7 +3,7 @@ let workspaceDirty=false, workspaceObserver=null, pendingDeleteId=null, pendingD
 let wizardBookingType='villa_stay';
 let operationsFilter='all', operationsTimeScope='upcoming';
 const $=id=>document.getElementById(id);
-const views={dashboard:$('dashboardSection'),bookings:$('bookingsSection'),settings:$('settingsSection'),daily:$('dailySection'),operations:$('operationsSection')};
+const views={dashboard:$('dashboardSection'),bookings:$('bookingsSection'),archives:$('archivesSection'),settings:$('settingsSection'),daily:$('dailySection'),operations:$('operationsSection')};
 const currencyCode=c=>['EUR','GBP'].includes(String(c||'').toUpperCase())?String(c).toUpperCase():'GBP';
 const money=(n,c='GBP')=>new Intl.NumberFormat('en-GB',{style:'currency',currency:currencyCode(c),maximumFractionDigits:2}).format(Number(n||0));
 const date=v=>v?new Date(v+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
@@ -544,8 +544,33 @@ function applyResourceCommissionDefault(force=false){
 }
 
 const operationalBookings=()=>bookings.filter(b=>(b.booking_type||'villa_stay')!=='restaurant');
-const activeBookings=()=>operationalBookings().filter(b=>String(b.status).toLowerCase()!=='cancelled');
-function renderAll(){renderPriorities();renderMetrics();renderUpcoming();renderBookings();populateMasterData();renderResources();}
+
+function bookingCompletionDate(b){
+  const type=b.booking_type||'villa_stay';
+  if(type==='villa_stay')return b.departure_date||b.arrival_date||null;
+  if(type==='boat_charter')return bookingBoat(b.id)?.charter_date||b.service_date||b.arrival_date||null;
+  if(type==='private_chef')return bookingChef(b.id)?.event_date||b.service_date||b.arrival_date||null;
+  return b.service_date||b.departure_date||b.arrival_date||null;
+}
+function isArchivedBooking(b){
+  const completion=bookingCompletionDate(b);
+  if(!completion)return false;
+  const d=localDateOnly(completion);
+  const today=new Date();today.setHours(0,0,0,0);
+  return Boolean(d&&d<today);
+}
+const archivedBookings=()=>operationalBookings().filter(b=>String(b.status).toLowerCase()!=='cancelled'&&isArchivedBooking(b));
+const activeBookings=()=>operationalBookings().filter(b=>String(b.status).toLowerCase()!=='cancelled'&&!isArchivedBooking(b));
+
+function renderAll(){
+  renderPriorities();
+  renderMetrics();
+  renderUpcoming();
+  renderBookings();
+  renderArchives();
+  populateMasterData();
+  renderResources();
+}
 
 const localDateOnly=value=>{
   if(!value)return null;
@@ -1397,14 +1422,46 @@ function groupedBookingsHtml(groups){
 
 function renderBookings(){
   const q=$('searchInput').value.trim().toLowerCase(),type=$('bookingTypeFilter')?.value||'all';
-  const filtered=operationalBookings().filter(b=>(type==='all'||(b.booking_type||'villa_stay')===type)&&(!q||[b.guest_name,b.guest_email,b.guest_phone,b.villa_name,b.service_title,b.status,primaryResource(b)].join(' ').toLowerCase().includes(q)));
+  const filtered=activeBookings().filter(b=>(type==='all'||(b.booking_type||'villa_stay')===type)&&(!q||[b.guest_name,b.guest_email,b.guest_phone,b.villa_name,b.service_title,b.status,primaryResource(b)].join(' ').toLowerCase().includes(q)));
   $('bookingsTable').innerHTML=groupedBookingsHtml(itineraryGroups(filtered));
+}
+
+function archiveBookingRowsHtml(rows){
+  if(!rows.length)return'<div class="empty-state">No archived bookings match your search.</div>';
+  return `<div class="archive-list">${rows.map(b=>`
+    <article class="archive-row">
+      <div class="archive-main">
+        <span class="initial-avatar">${esc((b.guest_name||'?').charAt(0).toUpperCase())}</span>
+        <div class="archive-identity">
+          <strong>${esc(b.guest_name||'Guest')}</strong>
+          <small>${esc(bookingTypeLabel(b.booking_type||'villa_stay'))} · ${esc(primaryResource(b))}</small>
+        </div>
+      </div>
+      <div><small>Date${b.booking_type==='villa_stay'?'s':''}</small><strong>${esc(bookingDisplayDates(b))}</strong></div>
+      <div><small>Booking value</small><strong>${money(Number(b.total_rental||0),bookingCurrency(b))}</strong></div>
+      <div><small>Paid</small><strong>${money(paidForCurrency(b,bookingCurrency(b)),bookingCurrency(b))}</strong></div>
+      <div><small>Archived after</small><strong>${date(bookingCompletionDate(b))}</strong></div>
+      <button type="button" class="button secondary compact" onclick="openDetail('${b.id}')">Open</button>
+    </article>`).join('')}</div>`;
+}
+function renderArchives(){
+  const table=$('archivesTable');if(!table)return;
+  const q=($('archiveSearchInput')?.value||'').trim().toLowerCase();
+  const type=$('archiveTypeFilter')?.value||'all';
+  const rows=archivedBookings()
+    .filter(b=>(type==='all'||(b.booking_type||'villa_stay')===type)&&(!q||[b.guest_name,b.guest_email,b.guest_phone,b.villa_name,b.service_title,b.status,primaryResource(b)].join(' ').toLowerCase().includes(q)))
+    .slice()
+    .sort((a,b)=>String(bookingCompletionDate(b)||'').localeCompare(String(bookingCompletionDate(a)||'')));
+  table.innerHTML=archiveBookingRowsHtml(rows);
+  const count=$('archiveCount');
+  if(count)count.textContent=`${rows.length} archived booking${rows.length===1?'':'s'}`;
 }
 function switchView(name){
   Object.entries(views).forEach(([key,view])=>view?.classList.toggle('hidden',key!==name));
   document.querySelectorAll('.nav-item').forEach(button=>button.classList.toggle('active',button.dataset.view===name));
   document.querySelector('.sidebar')?.classList.remove('open');
   if(name==='bookings')renderBookings();
+  if(name==='archives')renderArchives();
   if(name==='settings')renderResources();if(name==='daily')renderDailyOperations();if(name==='operations')renderOperationsCentre();
 }
 function setSaveStatus(state,text){
@@ -2767,6 +2824,9 @@ $('primaryBoatName')?.addEventListener('change',()=>{togglePrimaryOtherBoat();sy
 $('primaryBoatNameOther')?.addEventListener('input',()=>syncBoatSelectors('primary'));
 inheritedGuestFields.forEach(id=>$(id)?.addEventListener('input',e=>{e.target.dataset.customGuestValue='true';}));
 $('bookingTypeFilter')?.addEventListener('change',renderBookings);
+$('archiveSearchInput')?.addEventListener('input',renderArchives);
+$('archiveTypeFilter')?.addEventListener('change',renderArchives);
+
 
 document.addEventListener('click',async e=>{const btn=e.target.closest('[data-resource-toggle]');if(!btn)return;const active=btn.dataset.resourceActive==='true';const{error}=await supabaseClient.from('master_resources').update({active:!active}).eq('id',btn.dataset.resourceToggle);$('resourceMessage').textContent=error?error.message:(active?'Resource removed.':'Resource restored.');if(!error)await loadData();});
 init();
