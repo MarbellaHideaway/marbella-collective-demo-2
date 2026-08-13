@@ -87,3 +87,13 @@ This patch updates the villa booking financial workflow without requiring a data
 - Deleting from the customer-search screen keeps the booking wizard open and refreshes the customer results automatically.
 - Fixes boat editing so the saved boat name and charter details are re-hydrated after dropdown resources load, preventing the Boat field from reverting to “Select boat”.
 - No Supabase migration is required for this update.
+
+
+## v3.3.11 — Main bookings duplicate controls
+
+- Extends duplicate detection from the New Booking customer picker to the **main Bookings customer list**.
+- Close-name matches such as **Kelly Beattie / Kellie Beattie** and **Grace / Grace Rathbone** are flagged as possible duplicate customer records.
+- A customer with a single booking now gets a **Delete duplicate** shortcut directly on the main Bookings page.
+- Deletion uses the existing confirmation dialog and deletes only that booking, not the customer's other bookings.
+- After deletion the Bookings page refreshes immediately.
+- No Supabase SQL migration is required.

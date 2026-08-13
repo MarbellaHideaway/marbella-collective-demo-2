@@ -545,7 +545,8 @@ function applyResourceCommissionDefault(force=false){
 
 const operationalBookings=()=>bookings.filter(b=>(b.booking_type||'villa_stay')!=='restaurant');
 const activeBookings=()=>operationalBookings().filter(b=>String(b.status).toLowerCase()!=='cancelled');
-function renderAll(){renderPriorities();renderMetrics();renderUpcoming();renderBookings();populateMasterData();renderResources();}
+function renderAll(){renderPriorities();renderMetrics();renderUpcoming();renderBookings();
+  setTimeout(enhanceMainBookingDuplicateControls,0);populateMasterData();renderResources();}
 
 const localDateOnly=value=>{
   if(!value)return null;
@@ -1261,7 +1262,8 @@ function tableHtml(rows,actions=false){
   if(!rows.length)return'<div class="empty">No bookings found.</div>';
   return`<div class="table-wrap"><table><thead><tr><th>${sortHeader('Customer','customer')}</th><th>${sortHeader('Type','type')}</th><th>${sortHeader('Resource','resource')}</th><th>${sortHeader('Date / stay','date')}</th><th>${sortHeader('Guests','guests')}</th><th>${sortHeader('Revenue','revenue')}</th><th>${sortHeader('Commission','commission')}</th><th>${sortHeader('Deposit paid','deposit')}</th><th>${sortHeader('Next payment','next_payment')}</th><th>${sortHeader('Due date','next_due')}</th><th>${sortHeader('Paid','paid')}</th><th>${sortHeader('Balance','balance')}</th><th>${sortHeader('Supplier owed','supplier_owed')}</th><th>${sortHeader('Status','status')}</th>${actions?'<th></th>':''}</tr></thead><tbody>${rows.map(b=>`<tr class="click-row" onclick="openDetail('${b.id}')"><td><div class="guest-cell"><span class="guest-avatar">${esc((b.guest_name||'?').charAt(0))}</span><div><strong>${esc(b.guest_name)}</strong><br><small>${esc(b.lead_source||'')}</small></div></div></td><td><span class="booking-type-pill">${esc(bookingTypeLabel(b.booking_type))}</span></td><td>${esc(bookingDisplayPlace(b))}</td><td>${bookingDisplayDates(b)}</td><td>${b.number_of_guests||'—'}</td><td>${money(b.total_rental,bookingCurrency(b))}</td><td><strong class="commission-text">${money(commissionFor(b),commissionCurrency(b))}</strong></td><td>${money(depositPaidFor(b),bookingCurrency(b))}</td><td><strong class="next-payment-text ${nextPaymentState(b)}">${nextPaymentAmountFor(b)?money(nextPaymentAmountFor(b),nextPaymentCurrencyFor(b)):'—'}</strong><small class="payment-stage">${nextPaymentAmountFor(b)?esc(nextPaymentStageLabel(b)):''}</small></td><td><span class="next-payment-date ${nextPaymentState(b)}">${nextPaymentDateFor(b)?date(nextPaymentDateFor(b)):'—'}</span></td><td>${paidBreakdown(b)}</td><td><strong class="balance-text">${money(balanceFor(b),bookingCurrency(b))}</strong></td><td><strong class="supplier-owed-text">${money(supplierOwedFor(b),supplierCurrencyFor(b))}</strong></td><td><span class="badge ${statusClass(b.status)}">${esc(b.status||'Confirmed')}</span></td>${actions?`<td onclick="event.stopPropagation()"><div class="row-actions"><button onclick="editBooking('${b.id}')">Edit</button><button onclick="deleteBooking('${b.id}')">Delete</button></div></td>`:''}</tr>`).join('')}</tbody></table></div>`;
 }
-function bindSortHeaders(){document.querySelectorAll('[data-sort-key]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const key=btn.dataset.sortKey;if(bookingSort.key===key)bookingSort.direction=bookingSort.direction==='asc'?'desc':'asc';else{bookingSort.key=key;bookingSort.direction='asc';}renderUpcoming();renderBookings();}));}
+function bindSortHeaders(){document.querySelectorAll('[data-sort-key]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const key=btn.dataset.sortKey;if(bookingSort.key===key)bookingSort.direction=bookingSort.direction==='asc'?'desc':'asc';else{bookingSort.key=key;bookingSort.direction='asc';}renderUpcoming();renderBookings();
+  setTimeout(enhanceMainBookingDuplicateControls,0);}));}
 function renderUpcoming(){const today=new Date();today.setHours(0,0,0,0);const rows=sortedBookings(activeBookings().filter(b=>{const d=bookingPrimaryDate(b);return d&&new Date(d+'T12:00:00')>=today;})).slice(0,6);$('upcomingTable').innerHTML=tableHtml(rows);bindSortHeaders();}
 
 function itineraryKey(b){return String(b.itinerary_id||b.customer_id||customerKey(b)||b.id);}
@@ -1336,6 +1338,7 @@ function switchView(name){
   document.querySelectorAll('.nav-item').forEach(button=>button.classList.toggle('active',button.dataset.view===name));
   document.querySelector('.sidebar')?.classList.remove('open');
   if(name==='bookings')renderBookings();
+  setTimeout(enhanceMainBookingDuplicateControls,0);
   if(name==='settings')renderResources();if(name==='daily')renderDailyOperations();if(name==='operations')renderOperationsCentre();
 }
 function setSaveStatus(state,text){
@@ -1482,6 +1485,18 @@ function bookingDuplicateCandidate(booking){
     if(resourceA&&resourceB&&resourceA!==resourceB)return false;
     return true;
   })||null;
+}
+
+
+function duplicateCustomerGroupsForOverview(groups){
+  const out=new Map();
+  (groups||[]).forEach(c=>{
+    const matches=(groups||[])
+      .filter(o=>o.key!==c.key && potentialDuplicateCustomerName(c.name,o.name))
+      .sort((a,b)=>(b.bookings?.length||0)-(a.bookings?.length||0));
+    if(matches[0]) out.set(c.key,matches[0]);
+  });
+  return out;
 }
 
 function customerGroups(){
@@ -1901,6 +1916,11 @@ async function performDeleteBooking(){
       $('wizardCustomerStep')?.classList.remove('hidden');
       $('wizardCustomerSearchWrap')?.classList.remove('hidden');
       renderWizardCustomers();
+    }else if(returnContext==='main'){
+      closeModal(true);
+      switchView('bookings');
+      await loadData();
+      setTimeout(enhanceMainBookingDuplicateControls,0);
     }else{
       closeModal(true);switchView('bookings');await loadData();
     }
@@ -2425,6 +2445,70 @@ window.openPaymentModal=id=>{
 };
 function closePaymentModal(){$('paymentModal').classList.add('hidden');$('paymentModal').setAttribute('aria-hidden','true');}
 window.deletePayment=async id=>{if(!confirm('Delete this payment transaction? The booking balance will update automatically.'))return;const{error}=await supabaseClient.from('booking_payments').delete().eq('id',id);if(error)alert(error.message);else await loadData();};
+
+
+function enhanceMainBookingDuplicateControls(){
+  const view=$('bookingsView')||document.querySelector('[data-view="bookings"]')||document;
+  const groups=customerGroups();
+  const dupMap=duplicateCustomerGroupsForOverview(groups);
+  const cards=[...view.querySelectorAll('.customer-booking-row,.booking-customer-row,.itinerary-row,.customer-row,.booking-group-row,.booking-card')];
+  if(!cards.length){
+    // Fallback: identify cards by "linked booking" text.
+    [...view.querySelectorAll('div,article')].forEach(el=>{
+      if(el.dataset.dupEnhanced)return;
+      const txt=(el.innerText||'').trim();
+      if(!/linked booking/i.test(txt))return;
+      if(txt.length>900)return;
+      const customer=groups.find(g=>txt.includes(g.name));
+      if(!customer)return;
+      el.dataset.dupEnhanced='1';
+      const duplicate=dupMap.get(customer.key);
+      if(duplicate){
+        const badge=document.createElement('span');
+        badge.className='main-duplicate-warning';
+        badge.textContent=`Possible duplicate of ${duplicate.name}`;
+        const nameNode=[...el.querySelectorAll('strong,h2,h3,h4,div,span')].find(n=>(n.textContent||'').trim()===customer.name);
+        (nameNode?.parentElement||el).appendChild(badge);
+      }
+      if((customer.bookings||[]).length===1){
+        const b=customer.bookings[0];
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='button danger-outline compact main-quick-delete';
+        btn.textContent='Delete duplicate';
+        btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openDeleteConfirm(b.id,'main');});
+        const target=el.querySelector('.booking-actions,.row-actions')||el;
+        target.appendChild(btn);
+      }
+    });
+    return;
+  }
+  cards.forEach(el=>{
+    if(el.dataset.dupEnhanced)return;
+    const txt=(el.innerText||'').trim();
+    const customer=groups.find(g=>txt.includes(g.name));
+    if(!customer)return;
+    el.dataset.dupEnhanced='1';
+    const duplicate=dupMap.get(customer.key);
+    if(duplicate){
+      const badge=document.createElement('span');
+      badge.className='main-duplicate-warning';
+      badge.textContent=`Possible duplicate of ${duplicate.name}`;
+      const nameNode=[...el.querySelectorAll('strong,h2,h3,h4,div,span')].find(n=>(n.textContent||'').trim()===customer.name);
+      (nameNode?.parentElement||el).appendChild(badge);
+    }
+    if((customer.bookings||[]).length===1){
+      const b=customer.bookings[0];
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='button danger-outline compact main-quick-delete';
+      btn.textContent='Delete duplicate';
+      btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openDeleteConfirm(b.id,'main');});
+      const target=el.querySelector('.booking-actions,.row-actions')||el;
+      target.appendChild(btn);
+    }
+  });
+}
 
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMessage').textContent='';$('loginButton').disabled=true;const{error}=await supabaseClient.auth.signInWithPassword({email:$('email').value,password:$('password').value});$('loginButton').disabled=false;if(error)$('loginMessage').textContent=error.message;});
 $('resetPasswordForm')?.addEventListener('submit',async e=>{

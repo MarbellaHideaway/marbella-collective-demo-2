@@ -541,3 +541,25 @@ button.is-pressed{
   .wizard-booking-row{align-items:flex-start;flex-direction:column}
   .wizard-booking-row .button{width:100%}
 }
+
+
+/* v3.3.11 — duplicate controls on main bookings page */
+.main-duplicate-warning{
+  display:inline-flex;
+  margin-top:6px;
+  width:max-content;
+  max-width:100%;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#fff1c8;
+  color:#7c5600;
+  font-size:12px;
+  font-weight:800;
+}
+.main-quick-delete{
+  margin-left:10px;
+  white-space:nowrap;
+}
+@media(max-width:900px){
+  .main-quick-delete{margin-left:0;margin-top:8px}
+}
