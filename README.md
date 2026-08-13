@@ -144,3 +144,15 @@ This patch updates the villa booking financial workflow without requiring a data
 - Adds a dedicated **Archives** item beneath Bookings in the sidebar.
 - Archives can be searched and filtered by booking type, and historic booking records can still be opened.
 - Archiving is date-driven; no Supabase migration is required.
+
+
+## v3.3.18 — Operational times
+
+- Daily Operations and Operations Centre now use the **actual operational time** whenever one is recorded.
+- Villa arrivals use the recorded arrival time; villa departures use the recorded departure time.
+- Boat sailings use the charter start time.
+- Private-chef bookings use the meal/service time where recorded.
+- Entertainment and other timed activities use their event/service/start time where available.
+- Payment, admin and information tasks remain **All day**.
+- Timed items are sorted chronologically within the day; genuine All day items remain grouped first.
+- No Supabase migration is required.

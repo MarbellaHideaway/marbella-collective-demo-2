@@ -766,6 +766,76 @@ function dailyCustomerGroupHeaderFromRows(rows,count){
     <button class="button secondary compact" onclick="openDetailResponsive('${preferred.id}',this)">Open itinerary</button>
   </div>`;
 }
+
+function operationalTimeForBooking(b,kind='service'){
+  if(!b)return '';
+  const type=b.booking_type||'villa_stay';
+
+  if(type==='villa_stay'){
+    if(kind==='arrival')return b.arrival_time||'';
+    if(kind==='departure')return b.departure_time||'';
+    return '';
+  }
+
+  if(type==='boat_charter'){
+    return bookingBoat(b.id)?.start_time||b.start_time||'';
+  }
+
+  if(type==='private_chef'){
+    const chef=bookingChef(b.id);
+    return chef?.meal_time||chef?.service_time||chef?.start_time||b.start_time||'';
+  }
+
+  // Generic service/event bookings: prefer a recorded event/service/start time.
+  return b.event_time||b.service_time||b.start_time||'';
+}
+
+function operationalTimeLabel(value){
+  if(!value)return 'All day';
+  const raw=String(value).trim();
+  if(!raw)return 'All day';
+
+  // Accept HH:MM[:SS] and display cleanly.
+  const m=raw.match(/^(\d{1,2}):(\d{2})/);
+  if(m){
+    const h=String(m[1]).padStart(2,'0');
+    const min=m[2];
+    return `${h}:${min}`;
+  }
+  return raw;
+}
+
+function operationalTimeSortValue(value){
+  if(!value)return -1; // all-day items first
+  const m=String(value).match(/^(\d{1,2}):(\d{2})/);
+  if(!m)return 99999;
+  return Number(m[1])*60+Number(m[2]);
+}
+
+
+function normaliseOperationalFeedTimes(items){
+  return (items||[]).map(item=>{
+    if(!item)return item;
+    if(item.time&&item.time!=='All day')return item;
+    const b=item.booking||item._booking||bookings.find(x=>String(x.id)===String(item.booking_id||item.bookingId||''));
+    if(!b)return item;
+
+    const t=String(item.title||item.label||'').toLowerCase();
+    let kind='service';
+    if(t.includes('arrival'))kind='arrival';
+    else if(t.includes('departure'))kind='departure';
+
+    const resolved=operationalTimeForBooking(b,kind);
+    if(resolved)item.time=operationalTimeLabel(resolved);
+    return item;
+  }).sort((a,b)=>{
+    const av=operationalTimeSortValue(a?.time==='All day'?'':a?.time);
+    const bv=operationalTimeSortValue(b?.time==='All day'?'':b?.time);
+    if(av!==bv)return av-bv;
+    return String(a?.title||'').localeCompare(String(b?.title||''));
+  });
+}
+
 function dailyRange(){
   const mode=$('dailyPeriodSelect')?.value||'today';
   const base=$('dailyOperationsDate')?.value||todayISO();
@@ -779,6 +849,8 @@ function dailyRange(){
 }
 function inDailyRange(value,range){return Boolean(value&&value>=range.start&&value<=range.end);}
 function renderDailyOperations(){
+  // Timed operational items sort chronologically; genuine all-day items remain grouped first.
+
   const range=dailyRange();
   if($('dailyOperationsTitle'))$('dailyOperationsTitle').textContent=`Daily Operations — ${range.label}`;
   const cards=[];
