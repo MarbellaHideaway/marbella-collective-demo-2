@@ -1,5 +1,5 @@
 let supabaseClient=null, bookings=[], payments=[], transfers=[], boats=[], chefs=[], experiences=[], resources=[], taskDismissals=[], selectedBooking=null, activeDetailTab='customer', bookingSort={key:'date',direction:'asc'};
-let workspaceDirty=false, workspaceObserver=null, pendingDeleteId=null, pendingDuplicate=null, allowDuplicateOnce=false;
+let workspaceDirty=false, workspaceObserver=null, pendingDeleteId=null, pendingDeleteContext=null, pendingDuplicate=null, allowDuplicateOnce=false;
 let wizardBookingType='villa_stay';
 let operationsFilter='all', operationsTimeScope='upcoming';
 const $=id=>document.getElementById(id);
@@ -1421,6 +1421,69 @@ function strongCustomerIdentityMatch(a,b){
   if(ap&&bp&&ap===bp)return true;
   return false;
 }
+
+function levenshteinDistance(a,b){
+  a=normaliseCustomerValue(a);b=normaliseCustomerValue(b);
+  if(a===b)return 0;
+  if(!a.length)return b.length;
+  if(!b.length)return a.length;
+  const prev=Array.from({length:b.length+1},(_,i)=>i),cur=new Array(b.length+1);
+  for(let i=1;i<=a.length;i++){
+    cur[0]=i;
+    for(let j=1;j<=b.length;j++){
+      cur[j]=Math.min(
+        cur[j-1]+1,
+        prev[j]+1,
+        prev[j-1]+(a[i-1]===b[j-1]?0:1)
+      );
+    }
+    for(let j=0;j<=b.length;j++)prev[j]=cur[j];
+  }
+  return prev[b.length];
+}
+function splitCustomerName(value){
+  const parts=normaliseCustomerValue(value).replace(/[^a-z0-9à-ÿ' -]/gi,'').split(/\s+/).filter(Boolean);
+  return {first:parts[0]||'',last:parts.length>1?parts[parts.length-1]:'',parts};
+}
+function potentialDuplicateCustomerName(a,b){
+  const x=splitCustomerName(a),y=splitCustomerName(b);
+  if(!x.first||!y.first)return false;
+  if(normaliseCustomerValue(a)===normaliseCustomerValue(b))return true;
+  if(x.last&&y.last&&x.last===y.last){
+    const d=levenshteinDistance(x.first,y.first);
+    return d<=2 || x.first.startsWith(y.first) || y.first.startsWith(x.first);
+  }
+  const whole=levenshteinDistance(normaliseCustomerValue(a),normaliseCustomerValue(b));
+  return whole<=2;
+}
+function customerDuplicateCandidate(customer,groups){
+  return groups
+    .filter(other=>other.key!==customer.key)
+    .map(other=>{
+      let score=0;
+      if(potentialDuplicateCustomerName(customer.name,other.name))score+=70;
+      const ce=normaliseCustomerValue(customer.email),oe=normaliseCustomerValue(other.email);
+      const cp=normalisePhone(customer.phone),op=normalisePhone(other.phone);
+      if(ce&&oe&&ce===oe)score+=100;
+      if(cp&&op&&cp===op)score+=95;
+      return {other,score};
+    })
+    .filter(x=>x.score>=70)
+    .sort((a,b)=>b.score-a.score)[0]||null;
+}
+function bookingDuplicateCandidate(booking){
+  const dateA=bookingPrimaryDate(booking),resourceA=normaliseCustomerValue(primaryResource(booking));
+  return bookings.find(other=>{
+    if(String(other.id)===String(booking.id))return false;
+    if((other.booking_type||'villa_stay')!==(booking.booking_type||'villa_stay'))return false;
+    if(!potentialDuplicateCustomerName(booking.guest_name,other.guest_name))return false;
+    if(dateA&&bookingPrimaryDate(other)&&dateA!==bookingPrimaryDate(other))return false;
+    const resourceB=normaliseCustomerValue(primaryResource(other));
+    if(resourceA&&resourceB&&resourceA!==resourceB)return false;
+    return true;
+  })||null;
+}
+
 function customerGroups(){
   const groups=[];
   bookings.forEach(b=>{
@@ -1466,8 +1529,33 @@ function closeBookingWizard(){if($('bookingWizardModal'))delete $('bookingWizard
 function chooseWizardType(type){wizardBookingType=type;$('wizardTypeStep').classList.add('hidden');$('wizardCustomerStep').classList.remove('hidden');$('wizardCustomerSearchWrap').classList.add('hidden');}
 function renderWizardCustomers(){
   const q=$('wizardCustomerSearch').value.trim().toLowerCase();
-  const groups=customerGroups().filter(c=>!q||[c.name,c.email,c.phone].some(v=>String(v||'').toLowerCase().includes(q))).slice(0,20);
-  $('wizardCustomerResults').innerHTML=groups.map(c=>`<button type="button" class="wizard-customer-row" data-wizard-customer="${esc(c.key)}"><span><strong>${esc(c.name)}</strong><small>${esc(c.email||c.phone||'No contact details')}</small></span><em>${c.bookings.length} booking${c.bookings.length===1?'':'s'}</em></button>`).join('')||'<div class="empty">No matching customers.</div>';
+  const allGroups=customerGroups();
+  const groups=allGroups.filter(c=>!q||[c.name,c.email,c.phone].some(v=>String(v||'').toLowerCase().includes(q))).slice(0,20);
+  $('wizardCustomerResults').innerHTML=groups.map(c=>{
+    const duplicate=customerDuplicateCandidate(c,allGroups);
+    const bookingsHtml=(c.bookings||[]).slice().sort((a,b)=>String(bookingPrimaryDate(a)||'').localeCompare(String(bookingPrimaryDate(b)||''))).map(b=>{
+      const dupBooking=bookingDuplicateCandidate(b);
+      return `<div class="wizard-booking-row ${dupBooking?'possible-duplicate-booking':''}">
+        <div class="wizard-booking-copy">
+          <strong>${esc(bookingTypeLabel(b.booking_type))} · ${esc(primaryResource(b))}</strong>
+          <small>${esc(bookingDisplayDates(b))}${Number(b.total_rental||0)>0?` · ${money(Number(b.total_rental||0),bookingCurrency(b))}`:''}</small>
+          ${dupBooking?`<span class="duplicate-inline-warning">Possible duplicate booking</span>`:''}
+        </div>
+        <button type="button" class="button danger-outline compact" data-delete-wizard-booking="${esc(b.id)}">Delete booking</button>
+      </div>`;
+    }).join('');
+    return `<article class="wizard-customer-card ${duplicate?'possible-duplicate-customer':''}">
+      <button type="button" class="wizard-customer-select" data-wizard-customer="${esc(c.key)}">
+        <span>
+          <strong>${esc(c.name)}</strong>
+          <small>${esc(c.email||c.phone||'No contact details')}</small>
+          ${duplicate?`<span class="duplicate-customer-warning">Possible duplicate of ${esc(duplicate.other.name)}</span>`:''}
+        </span>
+        <em>${c.bookings.length} booking${c.bookings.length===1?'':'s'}</em>
+      </button>
+      <div class="wizard-booking-list">${bookingsHtml}</div>
+    </article>`;
+  }).join('')||'<div class="empty">No matching customers.</div>';
 }
 function startWizardBooking(customer=null){closeBookingWizard();openModal(null,{type:wizardBookingType,customer});}
 function findCustomerMatches(){
@@ -1681,6 +1769,33 @@ window.openLinkedBooking=id=>{
   activeDetailTab='booking';
   setTimeout(()=>openDetail(id),0);
 };
+
+function hydrateSavedBoatEditFields(b){
+  if(!b||b.booking_type!=='boat_charter')return;
+  const bt=bookingBoat(b.id);
+  if(!bt)return;
+  const savedBoat=String(bt.boat_name||'').trim();
+  if(savedBoat){
+    const exists=activeResources('boat').some(r=>String(r.name)===savedBoat);
+    if($('primaryBoatName')){
+      if(exists){$('primaryBoatName').value=savedBoat;if($('primaryBoatNameOther'))$('primaryBoatNameOther').value='';}
+      else{$('primaryBoatName').value='Other';if($('primaryBoatNameOther'))$('primaryBoatNameOther').value=savedBoat;}
+      togglePrimaryOtherBoat();
+    }
+    if($('boatName')){
+      if(exists){$('boatName').value=savedBoat;if($('boatNameOther'))$('boatNameOther').value='';}
+      else{$('boatName').value='Other';if($('boatNameOther'))$('boatNameOther').value=savedBoat;}
+      toggleOtherBoat();
+    }
+  }
+  if($('boatMarina'))$('boatMarina').value=bt.departure_marina||b.event_location||'Puerto Banús';
+  if($('boatDate'))$('boatDate').value=bt.charter_date||b.service_date||'';
+  if($('boatStartTime'))$('boatStartTime').value=bt.start_time||'';
+  if($('boatDuration'))$('boatDuration').value=bt.duration_hours??'';
+  if($('boatGuests'))$('boatGuests').value=bt.guests??b.number_of_guests??'';
+  if($('boatStatus'))$('boatStatus').value=effectiveBoatStatus(b);
+}
+
 function openModal(b=null,options={}){$('supplierCurrency')?.removeAttribute('data-overridden');
   $('bookingForm')?.classList.toggle('existing-booking',Boolean(b));
   $('bookingForm').reset();$('bookingId').value=b?.id||'';$('customerId').value=b?.customer_id||options.customer?.customer_id||options.customer?.key||'';$('itineraryId').value=b?.itinerary_id||options.itineraryId||options.customer?.itinerary_id||'';renderLinkedCustomerPanel(options.customer||null);renderEditItineraryPanel(b);$('modalTitle').textContent=b?'Edit booking':'Add booking';
@@ -1715,7 +1830,27 @@ function openModal(b=null,options={}){$('supplierCurrency')?.removeAttribute('da
 updateBoatFinancials();updateChefFinancials();['decor','shop','beach','ent'].forEach(updateExperienceBalance);
   $('deleteBookingButton').classList.toggle('hidden',!b);$('bookingMessage').textContent='';$('modal').classList.remove('hidden');$('modal').setAttribute('aria-hidden','false');document.body.classList.add('editor-open');
   workspaceDirty=false;setSaveStatus('saved','All changes saved');setActiveWorkspaceSection('guestSection');
-  requestAnimationFrame(()=>{document.querySelector('.workspace-content').scrollTop=0;setupWorkspaceNavigation();applyBookingTypeTemplate();if(!b){if(Number($('depositPaid')?.value||0)>0&&!$('depositPaidDate')?.value)$('depositPaidDate').value=new Date().toISOString().slice(0,10);applyMarbellaHideawayPaymentDefaults(false);}syncBoatBookingFields(false);applyBoatWorkflowDefaults(b);renderCustomerMatchPanel();updatePaymentSummaryPreview();updateBoatCurrencyCalculations();});
+  requestAnimationFrame(()=>{
+    document.querySelector('.workspace-content').scrollTop=0;
+    setupWorkspaceNavigation();
+    applyBookingTypeTemplate();
+    if(!b){
+      if(Number($('depositPaid')?.value||0)>0&&!$('depositPaidDate')?.value)$('depositPaidDate').value=new Date().toISOString().slice(0,10);
+      applyMarbellaHideawayPaymentDefaults(false);
+    }
+    if(b?.booking_type==='boat_charter'){
+      populateMasterData();
+      hydrateSavedBoatEditFields(b);
+      syncBoatBookingFields(false);
+      hydrateSavedBoatEditFields(b);
+    }else{
+      syncBoatBookingFields(false);
+    }
+    applyBoatWorkflowDefaults(b);
+    renderCustomerMatchPanel();
+    updatePaymentSummaryPreview();
+    updateBoatCurrencyCalculations();
+  });
   repopulateSavedFinancialFields(b);
   if(b?.booking_type==='villa_stay')applyMarbellaHideawayPaymentDefaults(false);
   syncBookingCurrencySymbols();
@@ -1733,11 +1868,19 @@ window.editBooking=id=>{
     alert(`The booking editor could not be opened: ${error?.message||'Unknown error'}`);
   }
 };
-window.openDeleteConfirm=function(id){
+window.openDeleteConfirm=function(id,context=null){
   const b=bookings.find(x=>String(x.id)===String(id));if(!b)return;
-  pendingDeleteId=id;const related=relatedBookings(b);$('deleteConfirmTitle').textContent=related.length?'Delete this booking only?':'Delete booking?';$('deleteConfirmSummary').textContent=related.length?`${b.guest_name} has ${related.length+1} linked bookings. Only ${bookingDisplayPlace(b)} • ${bookingDisplayDates(b)} will be deleted; the other bookings will remain.`:`${b.guest_name} • ${bookingDisplayPlace(b)} • ${bookingDisplayDates(b)}. This is their only linked booking.`;$('deleteConfirmMessage').textContent='';$('deleteConfirmModal').classList.remove('hidden');$('deleteConfirmModal').setAttribute('aria-hidden','false');
+  pendingDeleteId=id;pendingDeleteContext=context;
+  const related=relatedBookings(b);
+  $('deleteConfirmTitle').textContent=related.length?'Delete this booking only?':'Delete booking?';
+  $('deleteConfirmSummary').textContent=related.length
+    ?`${b.guest_name} has ${related.length+1} linked bookings. Only ${bookingDisplayPlace(b)} • ${bookingDisplayDates(b)} will be deleted; the other bookings will remain.`
+    :`${b.guest_name} • ${bookingDisplayPlace(b)} • ${bookingDisplayDates(b)}. This is their only linked booking.`;
+  $('deleteConfirmMessage').textContent='';
+  $('deleteConfirmModal').classList.remove('hidden');
+  $('deleteConfirmModal').setAttribute('aria-hidden','false');
 }
-function closeDeleteConfirm(){pendingDeleteId=null;$('deleteConfirmModal').classList.add('hidden');$('deleteConfirmModal').setAttribute('aria-hidden','true');}
+function closeDeleteConfirm(){pendingDeleteId=null;pendingDeleteContext=null;$('deleteConfirmModal').classList.add('hidden');$('deleteConfirmModal').setAttribute('aria-hidden','true');}
 async function deleteLinked(table,id){const{error}=await supabaseClient.from(table).delete().eq('booking_id',id);if(error&&error.code!=='42P01')throw error;}
 window.deleteBooking=id=>openDeleteConfirm(id);
 async function performDeleteBooking(){
@@ -1748,7 +1891,19 @@ async function performDeleteBooking(){
     for(const table of ['booking_payments','booking_transfers','booking_boats','booking_chefs','booking_experiences'])await deleteLinked(table,id);
     const{error}=await supabaseClient.from('bookings').delete().eq('id',id);if(error)throw error;
     if(selectedBooking&&String(selectedBooking.id)===String(id)){selectedBooking=null;closeDetail();}
-    closeDeleteConfirm();closeModal(true);switchView('bookings');await loadData();
+    const returnContext=pendingDeleteContext;
+    closeDeleteConfirm();
+    if(returnContext==='wizard'){
+      await loadData();
+      $('bookingWizardModal')?.classList.remove('hidden');
+      $('bookingWizardModal')?.setAttribute('aria-hidden','false');
+      $('wizardTypeStep')?.classList.add('hidden');
+      $('wizardCustomerStep')?.classList.remove('hidden');
+      $('wizardCustomerSearchWrap')?.classList.remove('hidden');
+      renderWizardCustomers();
+    }else{
+      closeModal(true);switchView('bookings');await loadData();
+    }
   }catch(error){$('deleteConfirmMessage').textContent=error.message||'The booking could not be deleted.';}
   finally{$('confirmDeleteBooking').disabled=false;}
 }
@@ -2306,7 +2461,18 @@ $('wizardBackToTypes')?.addEventListener('click',()=>{$('wizardCustomerStep').cl
 $('wizardNewCustomer')?.addEventListener('click',()=>startWizardBooking());
 $('wizardExistingCustomer')?.addEventListener('click',()=>{$('wizardCustomerSearchWrap').classList.remove('hidden');renderWizardCustomers();$('wizardCustomerSearch').focus();});
 $('wizardCustomerSearch')?.addEventListener('input',renderWizardCustomers);
-$('wizardCustomerResults')?.addEventListener('click',e=>{const btn=e.target.closest('[data-wizard-customer]');if(!btn)return;const customer=customerGroups().find(c=>c.key===btn.dataset.wizardCustomer);if(customer)startWizardBooking(customer);});
+$('wizardCustomerResults')?.addEventListener('click',e=>{
+  const del=e.target.closest('[data-delete-wizard-booking]');
+  if(del){
+    e.preventDefault();e.stopPropagation();
+    openDeleteConfirm(del.dataset.deleteWizardBooking,'wizard');
+    return;
+  }
+  const btn=e.target.closest('[data-wizard-customer]');
+  if(!btn)return;
+  const customer=customerGroups().find(c=>c.key===btn.dataset.wizardCustomer);
+  if(customer)startWizardBooking(customer);
+});
 ['adultCount','childCount'].forEach(id=>$(id)?.addEventListener('input',()=>syncGuestTotal(true)));
 $('eventLocationSelect')?.addEventListener('change',()=>syncConditionalInput('eventLocationSelect','eventLocation'));
 $('guestNationalitySelect')?.addEventListener('change',()=>syncConditionalInput('guestNationalitySelect','guestNationality'));

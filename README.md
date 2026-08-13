@@ -76,3 +76,14 @@ This patch updates the villa booking financial workflow without requiring a data
 - Departure marina defaults to Puerto Banús with Estepona, Benalmádena and Other; new Other marinas are saved to master resources.
 - Fixes itinerary Open buttons and shows linked customer bookings inside the booking editor.
 - Adds database fields for next-payment currency and supplier-payment due date, and synchronises the payment-strategy constraint.
+
+
+## v3.3.10 — Duplicate guard & edit stability
+
+- Customer search now flags **possible duplicate customers** using close-name matching, so names such as “Kellie Beattie” and “Kelly Beattie” are surfaced for review.
+- Individual bookings are shown directly beneath each customer result.
+- Each booking has a **Delete booking** action with the existing confirmation dialog, making accidental duplicate imports easy to remove without deleting the customer or their other bookings.
+- Likely duplicate bookings are marked separately when name, booking type, date and resource strongly overlap.
+- Deleting from the customer-search screen keeps the booking wizard open and refreshes the customer results automatically.
+- Fixes boat editing so the saved boat name and charter details are re-hydrated after dropdown resources load, preventing the Boat field from reverting to “Select boat”.
+- No Supabase migration is required for this update.

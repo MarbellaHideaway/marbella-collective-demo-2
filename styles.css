@@ -468,3 +468,76 @@ button.is-pressed{
 .edit-itinerary-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:13px}
 .edit-itinerary-row div{display:grid;gap:2px}.edit-itinerary-row small{color:var(--muted)}
 @media(max-width:720px){.edit-itinerary-row{grid-template-columns:auto 1fr}.edit-itinerary-row button{grid-column:1/-1;width:100%}}
+
+
+/* v3.3.10 — duplicate customer guard + quick booking cleanup */
+.wizard-customer-card{
+  border:1px solid var(--line,#d9ddd7);
+  border-radius:16px;
+  background:#fff;
+  overflow:hidden;
+  margin-bottom:10px;
+}
+.wizard-customer-card.possible-duplicate-customer{
+  border-color:#d9aa3d;
+  box-shadow:0 0 0 2px rgba(217,170,61,.08);
+}
+.wizard-customer-select{
+  width:100%;
+  border:0;
+  background:transparent;
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:center;
+  text-align:left;
+  padding:16px 18px;
+  cursor:pointer;
+  color:inherit;
+}
+.wizard-customer-select:hover{background:#f7faf8}
+.wizard-customer-select span{display:flex;flex-direction:column;gap:3px}
+.wizard-customer-select strong{font-size:17px}
+.wizard-customer-select small{color:#6c756f}
+.wizard-customer-select em{font-style:normal;font-weight:700;color:#0d493a;white-space:nowrap}
+.duplicate-customer-warning,
+.duplicate-inline-warning{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  align-items:center;
+  gap:6px;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:12px;
+  font-weight:800;
+  background:#fff1c8;
+  color:#7c5600;
+}
+.wizard-booking-list{
+  border-top:1px solid var(--line,#e0e3de);
+  background:#fbfcfa;
+}
+.wizard-booking-row{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+  padding:11px 18px;
+  border-top:1px solid #eceeea;
+}
+.wizard-booking-row:first-child{border-top:0}
+.wizard-booking-row.possible-duplicate-booking{background:#fffaf0}
+.wizard-booking-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wizard-booking-copy strong{font-size:14px}
+.wizard-booking-copy small{color:#737a75}
+.button.danger-outline{
+  background:#fff;
+  border:1px solid #dfb0a8;
+  color:#a63a2d;
+}
+.button.danger-outline:hover{background:#fff3f0}
+@media(max-width:700px){
+  .wizard-booking-row{align-items:flex-start;flex-direction:column}
+  .wizard-booking-row .button{width:100%}
+}
