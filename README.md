@@ -98,3 +98,11 @@ This patch updates the villa booking financial workflow without requiring a data
 - Expanding any itinerary now shows **Delete booking** beside every individual booking, so any unwanted duplicate can be removed from the main Bookings page.
 - Delete confirmation still removes only the selected booking.
 - No Supabase migration is required.
+
+
+## v3.3.13 — Duplicate grouping
+
+- Suspected duplicate customers are now sorted into adjacent clusters on the main Bookings page.
+- Pairs such as **Grace / Grace Rathbone** and **Kelly / Kellie Beattie** now sit directly one above the other for easy comparison.
+- The existing duplicate warning and Delete duplicate controls are unchanged.
+- No Supabase migration is required.

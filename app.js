@@ -1301,7 +1301,38 @@ function groupServicesHtml(group){
 }
 function groupedBookingsHtml(groups){
   if(!groups.length)return'<div class="empty-state">No bookings found.</div>';
-  return `<div class="grouped-bookings">${groups.map(group=>{
+
+  // Keep suspected duplicates adjacent so they are easy to compare before deleting.
+  // Duplicate clusters sort ahead of ordinary rows, then retain their existing booking date order.
+  const originalIndex=new Map(groups.map((g,i)=>[g.key,i]));
+  const duplicateClusterCounts=new Map();
+  groups.forEach(g=>{
+    const key=duplicateClusterKey(g.guest_name,groups);
+    duplicateClusterCounts.set(key,(duplicateClusterCounts.get(key)||0)+1);
+  });
+  const orderedGroups=groups.slice().sort((a,b)=>{
+    const ak=duplicateClusterKey(a.guest_name,groups);
+    const bk=duplicateClusterKey(b.guest_name,groups);
+    const ad=(duplicateClusterCounts.get(ak)||0)>1;
+    const bd=(duplicateClusterCounts.get(bk)||0)>1;
+
+    // Duplicate clusters come first, but preserve relative date order between clusters.
+    if(ad!==bd)return ad?-1:1;
+
+    if(ak!==bk){
+      const ai=originalIndex.get(a.key)??0;
+      const bi=originalIndex.get(b.key)??0;
+      return ai-bi;
+    }
+
+    // Inside the same suspected duplicate cluster, keep names together and stable.
+    const an=normaliseCustomerValue(a.guest_name);
+    const bn=normaliseCustomerValue(b.guest_name);
+    const byName=an.localeCompare(bn);
+    return byName || ((originalIndex.get(a.key)??0)-(originalIndex.get(b.key)??0));
+  });
+
+  return `<div class="grouped-bookings">${orderedGroups.map(group=>{
     const p=group.primary,next=group.next_payment;
     const duplicate=groups.find(other=>other.key!==group.key && potentialDuplicateCustomerName(group.guest_name,other.guest_name));
     const quickDelete=duplicate && group.bookings.length===1
@@ -1456,6 +1487,16 @@ function splitCustomerName(value){
   const parts=normaliseCustomerValue(value).replace(/[^a-z0-9à-ÿ' -]/gi,'').split(/\s+/).filter(Boolean);
   return {first:parts[0]||'',last:parts.length>1?parts[parts.length-1]:'',parts};
 }
+
+function duplicateClusterKey(name,groups){
+  const matches=(groups||[]).filter(g=>potentialDuplicateCustomerName(name,g.guest_name||g.name));
+  const names=[name,...matches.map(g=>g.guest_name||g.name)].filter(Boolean);
+  if(!names.length)return normaliseCustomerValue(name);
+  return names
+    .map(n=>normaliseCustomerValue(n))
+    .sort((a,b)=>a.localeCompare(b))[0];
+}
+
 function potentialDuplicateCustomerName(a,b){
   const x=splitCustomerName(a),y=splitCustomerName(b);
   if(!x.first||!y.first)return false;
