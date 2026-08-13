@@ -1309,7 +1309,7 @@ function groupedBookingsHtml(groups){
   const clusterMembers=new Map();
 
   groups.forEach(g=>{
-    const key=duplicateClusterKey(g.guest_name,groups);
+    const key=duplicateClusterKey(g.guest_name,groups,g.key);
     groupClusterKey.set(g.key,key);
     if(!clusterMembers.has(key))clusterMembers.set(key,[]);
     clusterMembers.get(key).push(g);
@@ -1354,10 +1354,9 @@ function groupedBookingsHtml(groups){
 
   return `<div class="grouped-bookings">${orderedGroups.map(group=>{
     const p=group.primary,next=group.next_payment;
-    const groupIgnored=(group.bookings||[]).some(b=>b.duplicate_review_ignored===true);
-    const duplicate=groupIgnored?null:groups.find(other=>{
+    const duplicate=groups.find(other=>{
       if(other.key===group.key)return false;
-      if((other.bookings||[]).some(b=>b.duplicate_review_ignored===true))return false;
+      if(duplicatePairIgnored(group.key,other.key))return false;
       return potentialDuplicateCustomerName(group.guest_name,other.guest_name);
     });
     const duplicateActions=duplicate
@@ -1516,13 +1515,36 @@ function splitCustomerName(value){
   return {first:parts[0]||'',last:parts.length>1?parts[parts.length-1]:'',parts};
 }
 
-function duplicateClusterKey(name,groups){
-  const matches=(groups||[]).filter(g=>potentialDuplicateCustomerName(name,g.guest_name||g.name));
+
+const DUPLICATE_IGNORE_STORAGE_KEY='mc_duplicate_ignore_pairs_v1';
+function duplicatePairKey(a,b){
+  return [String(a||''),String(b||'')].sort((x,y)=>x.localeCompare(y)).join('||');
+}
+function ignoredDuplicatePairs(){
+  try{
+    const raw=localStorage.getItem(DUPLICATE_IGNORE_STORAGE_KEY);
+    const parsed=raw?JSON.parse(raw):[];
+    return new Set(Array.isArray(parsed)?parsed:[]);
+  }catch(_){return new Set();}
+}
+function duplicatePairIgnored(a,b){
+  return ignoredDuplicatePairs().has(duplicatePairKey(a,b));
+}
+function saveIgnoredDuplicatePair(a,b){
+  const set=ignoredDuplicatePairs();
+  set.add(duplicatePairKey(a,b));
+  localStorage.setItem(DUPLICATE_IGNORE_STORAGE_KEY,JSON.stringify([...set]));
+}
+
+function duplicateClusterKey(name,groups,currentKey=''){
+  const matches=(groups||[]).filter(g=>{
+    if(!potentialDuplicateCustomerName(name,g.guest_name||g.name))return false;
+    if(currentKey&&g.key&&duplicatePairIgnored(currentKey,g.key))return false;
+    return true;
+  });
   const names=[name,...matches.map(g=>g.guest_name||g.name)].filter(Boolean);
   if(!names.length)return normaliseCustomerValue(name);
-  return names
-    .map(n=>normaliseCustomerValue(n))
-    .sort((a,b)=>a.localeCompare(b))[0];
+  return names.map(n=>normaliseCustomerValue(n)).sort((a,b)=>a.localeCompare(b))[0];
 }
 
 function potentialDuplicateCustomerName(a,b){
@@ -2006,30 +2028,10 @@ window.quickDeleteDuplicate=async function(id){
   }
 };
 
-window.ignoreDuplicatePair=async function(groupKey,matchKey){
-  const groups=customerGroups();
-  const a=groups.find(g=>g.key===groupKey);
-  const b=groups.find(g=>g.key===matchKey);
-  if(!a||!b)return;
-
-  const ids=[...(a.bookings||[]),...(b.bookings||[])].map(x=>x.id).filter(Boolean);
-  if(!ids.length)return;
-
-  try{
-    const{error}=await supabaseClient
-      .from('bookings')
-      .update({duplicate_review_ignored:true})
-      .in('id',ids);
-    if(error)throw error;
-    ids.forEach(id=>{
-      const row=bookings.find(x=>String(x.id)===String(id));
-      if(row)row.duplicate_review_ignored=true;
-    });
-    renderBookings();
-  }catch(error){
-    console.error('Ignore duplicate failed',error);
-    window.alert(`Could not ignore this duplicate warning: ${error?.message||'Unknown error'}`);
-  }
+window.ignoreDuplicatePair=function(groupKey,matchKey){
+  if(!groupKey||!matchKey)return;
+  saveIgnoredDuplicatePair(groupKey,matchKey);
+  renderBookings();
 };
 
 window.openDeleteConfirm=function(id,context=null){

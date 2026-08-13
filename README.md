@@ -124,3 +124,11 @@ This patch updates the villa booking financial workflow without requiring a data
 - Adds **Ignore** beside every suspected duplicate pair.
 - Ignore persists in Supabase using `bookings.duplicate_review_ignored`, so reviewed legitimate bookings stop being flagged after refresh.
 - Run `supabase/031_duplicate_review_ignore.sql` before testing Ignore.
+
+
+## v3.3.16 — Ignore duplicate fix
+
+- **Ignore now works immediately** and no longer depends on a Supabase update.
+- Ignoring is **pair-specific**: ignoring `Lucy / Lucy Partridge` does not also suppress a separate `Lucy / Lucy Kirk` warning.
+- Ignored pairs persist in this browser using local storage and disappear from duplicate clustering immediately.
+- No Supabase SQL is required for this patch.
