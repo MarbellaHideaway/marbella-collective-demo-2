@@ -355,7 +355,13 @@ async function loadData(){
   if(selectedBooking){selectedBooking=bookings.find(b=>String(b.id)===String(selectedBooking.id))||null;if(selectedBooking)renderDetail();}
 }
 
-const activeResources=type=>resources.filter(r=>r.resource_type===type&&r.active!==false).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||String(a.name).localeCompare(String(b.name)));
+function resourceNameSort(a,b){
+  const an=String(a?.name||'').trim(),bn=String(b?.name||'').trim();
+  const ao=an.toLowerCase()==='other',bo=bn.toLowerCase()==='other';
+  if(ao!==bo)return ao?1:-1;
+  return an.localeCompare(bn,undefined,{sensitivity:'base'});
+}
+const activeResources=type=>resources.filter(r=>r.resource_type===type&&r.active!==false).sort(resourceNameSort);
 function fillSelect(id,type,current=''){
   const el=$(id);if(!el)return;const list=activeResources(type);const value=current||el.value||'';
   el.innerHTML=`<option value="">Select ${type}</option>${list.map(r=>`<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('')}`;
@@ -402,7 +408,7 @@ function supplierTypeDescription(type){
   }[type]||'Approved Marbella Collective suppliers.';
 }
 function supplierPanelHtml(type){
-  const rows=resources.filter(r=>r.resource_type===type&&!String(r.name||'').startsWith('__')).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||String(a.name).localeCompare(String(b.name)));
+  const rows=resources.filter(r=>r.resource_type===type&&!String(r.name||'').startsWith('__')).sort(resourceNameSort);
   const label=supplierTypeLabels[type]||type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
   return `<div class="panel resource-panel supplier-panel">
     <div class="panel-head"><div><h2>${esc(label)}</h2><p>${esc(supplierTypeDescription(type))}</p></div></div>
@@ -1493,6 +1499,7 @@ function groupedBookingsHtml(groups){
     });
     const duplicateActions=duplicate
       ? `<div class="duplicate-review-actions">
+          <button type="button" class="duplicate-card-ignore" data-merge-duplicate-keep="${esc(group.key)}" data-merge-duplicate-from="${esc(duplicate.key)}">Merge bookings</button>
           ${group.bookings.length===1?`<button type="button" class="duplicate-card-delete" data-quick-delete-duplicate="${esc(group.bookings[0].id)}">Delete duplicate</button>`:''}
           <button type="button" class="duplicate-card-ignore" data-ignore-duplicate-group="${esc(group.key)}" data-ignore-match-group="${esc(duplicate.key)}">Ignore</button>
         </div>`
@@ -1698,6 +1705,11 @@ function duplicatePairIgnored(a,b){
 function saveIgnoredDuplicatePair(a,b){
   const set=ignoredDuplicatePairs();
   set.add(duplicatePairKey(a,b));
+  localStorage.setItem(DUPLICATE_IGNORE_STORAGE_KEY,JSON.stringify([...set]));
+}
+function removeIgnoredDuplicatePair(a,b){
+  const set=ignoredDuplicatePairs();
+  set.delete(duplicatePairKey(a,b));
   localStorage.setItem(DUPLICATE_IGNORE_STORAGE_KEY,JSON.stringify([...set]));
 }
 
@@ -2200,6 +2212,71 @@ window.ignoreDuplicatePair=function(groupKey,matchKey){
   if(!groupKey||!matchKey)return;
   saveIgnoredDuplicatePair(groupKey,matchKey);
   renderBookings();
+};
+
+window.mergeDuplicateGroups=async function(keepKey,mergeKey){
+  const groups=itineraryGroups(activeBookings());
+  const keep=groups.find(g=>String(g.key)===String(keepKey));
+  const merge=groups.find(g=>String(g.key)===String(mergeKey));
+  if(!keep||!merge){
+    window.alert('One of the customer records could not be found. Please refresh and try again.');
+    return;
+  }
+
+  const keepBooking=keep.primary||keep.bookings[0];
+  if(!keepBooking)return;
+
+  const keepName=String(keep.guest_name||keepBooking.guest_name||'').trim();
+  const mergeName=String(merge.guest_name||merge.bookings?.[0]?.guest_name||'').trim();
+  const totalBookings=(keep.bookings?.length||0)+(merge.bookings?.length||0);
+
+  const confirmed=window.confirm(
+    `Merge these customer records?\n\n`+
+    `KEEP: ${keepName}\n`+
+    `MERGE IN: ${mergeName}\n\n`+
+    `All ${totalBookings} bookings will be kept and linked under ${keepName}. `+
+    `No bookings, payments or supplier details will be deleted.`
+  );
+  if(!confirmed)return;
+
+  const allRows=[...(keep.bookings||[]),...(merge.bookings||[])];
+  const ids=[...new Set(allRows.map(b=>b.id).filter(Boolean))];
+
+  const customerId=keepBooking.customer_id||customerKey(keepBooking);
+  const itineraryId=keepBooking.itinerary_id||keep.bookings.find(b=>b.itinerary_id)?.itinerary_id||keepBooking.id;
+
+  const firstValue=(field)=>{
+    const preferred=(keep.bookings||[]).find(b=>String(b?.[field]||'').trim())?.[field];
+    if(String(preferred||'').trim())return preferred;
+    return (merge.bookings||[]).find(b=>String(b?.[field]||'').trim())?.[field]||'';
+  };
+
+  const payload={
+    customer_id:customerId,
+    itinerary_id:itineraryId,
+    guest_name:keepName
+  };
+
+  const email=firstValue('guest_email');
+  const phone=firstValue('guest_phone');
+  const instagram=firstValue('guest_instagram');
+  const nationality=firstValue('guest_nationality');
+  if(email)payload.guest_email=email;
+  if(phone)payload.guest_phone=phone;
+  if(instagram)payload.guest_instagram=instagram;
+  if(nationality)payload.guest_nationality=nationality;
+
+  try{
+    const {error}=await supabaseClient.from('bookings').update(payload).in('id',ids);
+    if(error)throw error;
+    removeIgnoredDuplicatePair(keepKey,mergeKey);
+    await loadData();
+    switchView('bookings');
+    window.alert(`${totalBookings} bookings are now linked under ${keepName}.`);
+  }catch(error){
+    console.error('Merge duplicate customers failed',error);
+    window.alert(`The customer records could not be merged: ${error?.message||'Unknown error'}`);
+  }
 };
 
 window.openDeleteConfirm=function(id,context=null){
@@ -2814,6 +2891,17 @@ $('wizardExistingCustomer')?.addEventListener('click',()=>{$('wizardCustomerSear
 $('wizardCustomerSearch')?.addEventListener('input',renderWizardCustomers);
 
 document.addEventListener('click',e=>{
+  const mergeBtn=e.target.closest('[data-merge-duplicate-keep]');
+  if(mergeBtn){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.mergeDuplicateGroups(
+      mergeBtn.dataset.mergeDuplicateKeep,
+      mergeBtn.dataset.mergeDuplicateFrom
+    );
+    return;
+  }
+
   const deleteBtn=e.target.closest('[data-quick-delete-duplicate]');
   if(deleteBtn){
     e.preventDefault();

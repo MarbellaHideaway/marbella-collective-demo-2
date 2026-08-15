@@ -172,3 +172,16 @@ This update keeps v3.3.18 as the baseline and adds the latest operational fixes:
 - Sidebar active-state handling is reset on every view change so Operations Centre cannot remain highlighted after navigation.
 - Supabase resource validation now accepts **musician**, allowing suppliers such as Leo the Sax to be added under Musicians.
 - Run `supabase/032_villa_payments_operations_resources.sql` once before testing this release.
+
+
+## v3.3.20 — Duplicate merge + A–Z supplier lists
+
+- Adds **Merge bookings** beside suspected duplicate customer records.
+- Clicking Merge on a customer card means **keep that card's guest identity/name** and merge the other suspected duplicate into it.
+- All bookings are preserved; their payments, supplier amounts, dates, notes and service details remain attached to their existing booking records.
+- The merged bookings receive one customer identity and one itinerary, so they display together as a single guest record.
+- Missing contact details on the kept record can be filled from the merged record, while the chosen guest name remains unchanged.
+- The existing **Merge matching guests** control remains available for exact email/phone matches.
+- Supplier/resource lists now display **A–Z alphabetically**.
+- **Other** is always forced to the bottom of its resource list and dropdowns.
+- No Supabase SQL migration is required for this update.
