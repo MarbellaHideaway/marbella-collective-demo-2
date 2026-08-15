@@ -633,7 +633,7 @@ function buildPriorities(){
 
     if(type==='boat_charter'){
       const bt=bookingBoat(b.id),sail=bt?.charter_date||b.service_date,sd=daysFromToday(sail);
-      if(sd===0)add(b,'Boat sailing today',`${resource} • ${bt?.departure_marina||b.event_location||'Marina not recorded'} • ${bt?.start_time||'Time not recorded'}`,'urgent','open',sail,108);
+      if(sd===0)add(b,'Boat sailing today',`${resource} • ${bt?.departure_marina||b.event_location||'Puerto Banús'} • ${bt?.start_time||'Time not recorded'}`,'urgent','open',sail,108);
       else if(sd===1)add(b,'Boat sailing tomorrow',`${resource} • ${date(sail)}`,'soon','open',sail,92);
       else if(sd!==null&&sd>1&&sd<=7)add(b,'Boat sailing this week',`${resource} • ${date(sail)}`,'info','open',sail,58-sd);
       if(!boatIsConfirmed(b)&&sd!==null&&sd>=0)add(b,'Boat confirmation required',`${resource} • ${date(sail)}`,'urgent','open',sail,112);
@@ -842,6 +842,20 @@ function normaliseOperationalFeedTimes(items){
   });
 }
 
+
+function ordinalDay(n){
+  const j=n%10,k=n%100;
+  if(j===1&&k!==11)return `${n}st`;
+  if(j===2&&k!==12)return `${n}nd`;
+  if(j===3&&k!==13)return `${n}rd`;
+  return `${n}th`;
+}
+function longConsoleDate(value){
+  const d=new Date(String(value).slice(0,10)+'T12:00:00');
+  if(Number.isNaN(d.getTime()))return '';
+  return `${d.toLocaleDateString('en-GB',{weekday:'long'})} ${ordinalDay(d.getDate())} ${d.toLocaleDateString('en-GB',{month:'long'})} ${d.getFullYear()}`;
+}
+
 function dailyRange(){
   const mode=$('dailyPeriodSelect')?.value||'today';
   const base=$('dailyOperationsDate')?.value||todayISO();
@@ -876,10 +890,10 @@ function renderDailyOperations(){
   const push=(day,sort,html,booking)=>cards.push({day,sort,html,booking});
   arrivals.forEach(b=>push(b.arrival_date,b.arrival_time||'16:00',dailyCard('ARRIVAL',`${primaryResource(b)} arrival`,b.arrival_time||'16:00','',`${b.number_of_guests||'—'} guests${b.arrival_flight?` • Flight ${esc(b.arrival_flight)}`:''}`,b.notes?esc(b.notes):'',b.id,'arrival'),b));
   departures.forEach(b=>push(b.departure_date,b.departure_time||'12:00',dailyCard('DEPARTURE',`${primaryResource(b)} departure`,b.departure_time||'12:00','',`${b.number_of_guests||'—'} guests${b.departure_flight?` • Flight ${esc(b.departure_flight)}`:''}`,'',b.id,'departure'),b));
-  boatList.forEach(b=>{const bt=bookingBoat(b.id);const day=bt?.charter_date||b.service_date;push(day,bt?.start_time||'12:00',dailyCard('BOAT',`${bt?.boat_name||primaryResource(b)} sailing`,bt?.start_time||'Sailing','',`${bt?.departure_marina||b.event_location||'Marina not recorded'} • ${bt?.guests||b.number_of_guests||'—'} guests${bt?.duration_hours?` • ${bt.duration_hours} hrs`:''}`,bt?.notes?esc(bt.notes):'',b.id,'boat'),b)});
+  boatList.forEach(b=>{const bt=bookingBoat(b.id);const day=bt?.charter_date||b.service_date;push(day,bt?.start_time||'12:00',dailyCard('BOAT',`${bt?.boat_name||primaryResource(b)} sailing`,bt?.start_time||'Sailing','',`${bt?.departure_marina||b.event_location||'Puerto Banús'} • ${bt?.guests||b.number_of_guests||'—'} guests${bt?.duration_hours?` • ${bt.duration_hours} hrs`:''}`,bt?.notes?esc(bt.notes):'',b.id,'boat'),b)});
   chefList.forEach(b=>{const ch=bookingChef(b.id);const day=ch?.event_date||b.service_date;push(day,ch?.event_time||'18:00',dailyCard('CHEF',ch?.chef_name||'Private chef',ch?.event_time||'Event','',`${ch?.guests||b.number_of_guests||'—'} guests${ch?.menu?` • ${esc(ch.menu)}`:''}`,ch?.dietary_requirements?`Dietary: ${esc(ch.dietary_requirements)}`:'',b.id,'chef'),b)});
   otherList.forEach(b=>push(b.service_date,'12:00',dailyCard(bookingTypeLabel(b.booking_type).toUpperCase(),primaryResource(b),'All day','',b.event_location?esc(b.event_location):'',b.notes?esc(b.notes):'',b.id,'service'),b));
-  moneyDue.guest.forEach(b=>push(nextPaymentDateFor(b),'',dailyCard('GUEST PAYMENT','Guest payment due','All day','',`${money(nextPaymentAmountFor(b),nextPaymentCurrencyFor(b))} due`,paymentSummaryFor(b),b.id,'money'),b));
+  moneyDue.guest.forEach(b=>{const bt=b.booking_type==='boat_charter'?bookingBoat(b.id):null;const dueTime=b.booking_type==='boat_charter'?(bt?.start_time||''):'';push(nextPaymentDateFor(b),dueTime,dailyCard('GUEST PAYMENT','Guest payment due',dueTime||'All day','',`${money(nextPaymentAmountFor(b),nextPaymentCurrencyFor(b))} due`,paymentSummaryFor(b),b.id,'money'),b)});
   moneyDue.supplier.forEach(b=>{const d=supplierPaymentDateFor(b);push(d,'08:30',dailyCard('SUPPLIER','Supplier payment due','08:30','',`${money(supplierOwedFor(b),supplierCurrencyFor(b))} • ${esc(primaryResource(b))}`,'',b.id,'supplier'),b)});
 
   cards.sort((a,b)=>a.day.localeCompare(b.day)||String(a.sort).localeCompare(String(b.sort)));
@@ -982,7 +996,7 @@ function renderDailyOperations(){
       return sum+seen.size;
     },0);
 
-    return `<section class="daily-day-group"><div class="daily-date-banner"><strong>${new Date(day+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</strong><span>${itemCount} operational item${itemCount===1?'':'s'} • ${guestGroups.length} guest${guestGroups.length===1?'':'s'}</span></div>${guestBlocks}</section>`;
+    return `<section class="daily-day-group"><div class="daily-date-banner"><strong>${longConsoleDate(day)}</strong><span>${itemCount} operational item${itemCount===1?'':'s'} • ${guestGroups.length} guest${guestGroups.length===1?'':'s'}</span></div>${guestBlocks}</section>`;
   }).join(''):`<div class="priority-empty"><span>✓</span><div><strong>No operations recorded for ${range.label.toLowerCase()}</strong><p>Change the period or date to look ahead.</p></div></div>`;
 }
 
@@ -995,7 +1009,7 @@ function buildOperationalEvents(){
     const nextAmount=nextPaymentAmountFor(b),nextDue=nextPaymentDateFor(b),supplierDue=supplierOwedFor(b),primaryDate=bookingPrimaryDate(b);
     addOperationalEvent(events,{booking:b,date:b.created_at,title:'Booking created',detail:`${bookingTypeLabel(type)} • ${resource}`,category:type==='villa_stay'?'villa':type==='boat_charter'?'boat':'concierge',status:'info'});
     if(depositPaidFor(b)>0)addOperationalEvent(events,{booking:b,date:depositPaidDateFor(b)||b.created_at,title:'Deposit received',detail:`${money(depositPaidFor(b),currency)}`,category:'financial',status:'complete'});
-    if(nextAmount>0&&nextDue){const days=daysFromToday(nextDue);addOperationalEvent(events,{booking:b,date:nextDue,title:days<0?'Guest payment overdue':'Guest payment due',detail:`${money(nextAmount,currency)} • ${nextPaymentStageLabel(b)}`,category:'financial',status:days<0?'urgent':days<=7?'soon':'info'});}
+    if(nextAmount>0&&nextDue){const days=daysFromToday(nextDue),bt=type==='boat_charter'?bookingBoat(b.id):null;addOperationalEvent(events,{booking:b,date:nextDue,time:type==='boat_charter'?(bt?.start_time||''):'',title:days<0?'Guest payment overdue':'Guest payment due',detail:`${money(nextAmount,currency)} • ${nextPaymentStageLabel(b)}`,category:'financial',status:days<0?'urgent':days<=7?'soon':'info'});}
     if(supplierDue>0){const d=b.supplier_payment_due_date||nextDue||primaryDate||b.arrival_date||b.service_date;addOperationalEvent(events,{booking:b,date:d,title:'Supplier payment due',detail:`${money(supplierDue,supplierCurrencyFor(b))} • ${resource}`,category:'financial',status:daysFromToday(d)<0?'urgent':'soon'});}
     if(type==='villa_stay'){
       if(b.arrival_date)addOperationalEvent(events,{booking:b,date:b.arrival_date,time:b.arrival_time||'16:00',title:'Villa arrival',detail:`${resource} • ${b.number_of_guests||'—'} guests`,category:'villa',status:'info'});
@@ -1004,7 +1018,7 @@ function buildOperationalEvents(){
       if(days!==null&&days>=0&&days<=7&&!hasTravel)addOperationalEvent(events,{booking:b,date:b.arrival_date,title:'Flight details missing',detail:`Arrival at ${resource}`,category:'villa',status:'urgent'});
     }
     if(type==='boat_charter'){
-      const bt=bookingBoat(b.id),boat=bt?.boat_name||b.service_title||'Boat charter',sailDate=bt?.charter_date||b.service_date,marina=bt?.departure_marina||b.event_location||'Marina not recorded';
+      const bt=bookingBoat(b.id),boat=bt?.boat_name||b.service_title||'Boat charter',sailDate=bt?.charter_date||b.service_date,marina=bt?.departure_marina||b.event_location||'Puerto Banús';
       if(sailDate)addOperationalEvent(events,{booking:b,date:sailDate,time:bt?.start_time||'',title:'Boat sailing',detail:`${boat} • ${marina}${bt?.guests?` • ${bt.guests} guests`:''}`,category:'boat',status:boatIsConfirmed(b)?'complete':'urgent'});
       if(!boatIsConfirmed(b)&&sailDate)addOperationalEvent(events,{booking:b,date:sailDate,title:'Boat confirmation required',detail:`${boat} • ${marina}`,category:'boat',status:'urgent'});
     }
@@ -2496,7 +2510,7 @@ function customerTimelineEvents(b){
 
     if(type==='boat_charter'){
       const bt=bookingBoat(x.id),d=bt?.charter_date||x.service_date;
-      if(d)add({date:d,time:bt?.start_time||'',title:'Boat charter',detail:`${bt?.boat_name||resource} • ${bt?.departure_marina||x.event_location||'Marina not recorded'}${bt?.guests?` • ${bt.guests} guests`:''}`,category:'service',booking:x,status:boatIsConfirmed(x)?'complete':'future'});
+      if(d)add({date:d,time:bt?.start_time||'',title:'Boat charter',detail:`${bt?.boat_name||resource} • ${bt?.departure_marina||x.event_location||'Puerto Banús'}${bt?.guests?` • ${bt.guests} guests`:''}`,category:'service',booking:x,status:boatIsConfirmed(x)?'complete':'future'});
     }
 
     if(type==='private_chef'){

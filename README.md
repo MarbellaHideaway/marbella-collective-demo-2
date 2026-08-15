@@ -203,3 +203,11 @@ Run `supabase/033_second_deposit_paid_date.sql` once before testing the new seco
 - Operations Centre remains focused on real operational actions/events such as new bookings, deposits/payments, supplier payments, arrivals/departures and booked services.
 - Restores the original Archives card/grid formatting without changing any archive data or archive rules.
 - No Supabase SQL is required.
+
+
+## v3.3.23 — boat timing and date presentation
+- Boat final guest payments due on sailing day now inherit the recorded boat start time.
+- Boat departure marina defaults to **Puerto Banús** when no marina has been recorded.
+- Operational day headers use the full format **Thursday 3rd September 2026**.
+- The Daily Operations date selector that defaults to today is shown in **bold**.
+- No Supabase SQL is required.

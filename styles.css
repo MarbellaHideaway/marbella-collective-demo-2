@@ -476,3 +476,11 @@ button.is-pressed{
   .archive-row>div{display:flex!important}
   .archive-row .button{width:100%;justify-self:stretch}
 }
+
+
+/* v3.3.23 */
+#dailyDate,
+#dailyOperationsDate,
+.daily-head-actions input[type="date"]{
+  font-weight:800;
+}
