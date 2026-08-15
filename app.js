@@ -1011,8 +1011,8 @@ function buildOperationalEvents(){
     const ch=bookingChef(b.id);if(ch?.event_date)addOperationalEvent(events,{booking:b,date:ch.event_date,time:ch.event_time||'',title:'Private chef',detail:`${ch.chef_name||'Chef'}${ch.guests?` • ${ch.guests} guests`:''}`,category:'concierge',status:['confirmed','completed'].includes(ch.status)?'complete':'soon'});
     ['decorations','shopping','beach_club','entertainment'].forEach(cat=>{const ex=experienceFor(b.id,cat);if(ex?.event_date)addOperationalEvent(events,{booking:b,date:ex.event_date,time:ex.event_time||'',title:cat.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase()),detail:ex.title||ex.notes||resource,category:'concierge',status:serviceDone(ex.status)?'complete':'soon'});});
 
-    if(b.payment_notes)addOperationalEvent(events,{booking:b,date:b.payment_notes_updated_at||b.created_at,title:'Payment note',detail:b.payment_notes,category:'financial',status:'info'});
-    if(b.notes)addOperationalEvent(events,{booking:b,date:b.updated_at||b.created_at,title:'Booking note',detail:b.notes,category:type==='villa_stay'?'villa':type==='boat_charter'?'boat':'concierge',status:'info'});
+    // Internal booking/payment notes stay inside the booking record.
+    // They deliberately do not generate Operations Centre rows.
   });
   return events.sort((a,b)=>new Date(`${a.date}T${a.time||'00:00'}`)-new Date(`${b.date}T${b.time||'00:00'}`));
 }

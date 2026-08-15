@@ -185,3 +185,21 @@ This update keeps v3.3.18 as the baseline and adds the latest operational fixes:
 - Supplier/resource lists now display **A–Z alphabetically**.
 - **Other** is always forced to the bottom of its resource list and dropdowns.
 - No Supabase SQL migration is required for this update.
+
+
+## v3.3.21 — villa payment and edit-screen fix
+- The existing staged-payment control now persists the **Second deposit paid date**.
+- For a 25% / 25% / 50% villa plan, recording the second 25% moves the next guest payment to the final 50%.
+- Supplier payment due becomes that final 50% and is due **30 days before arrival**.
+- Empty villa concierge sections are hidden when there is no associated booking; populated boat/chef/experience/restaurant sections remain visible.
+- **Internal notes stays visible at the bottom.**
+
+Run `supabase/033_second_deposit_paid_date.sql` once before testing the new second-deposit date.
+
+
+## v3.3.22 — Operations Centre clean-up + Archives styling
+- Removes **Booking note** and **Payment note** rows from Operations Centre.
+- Internal notes remain available inside the individual booking record.
+- Operations Centre remains focused on real operational actions/events such as new bookings, deposits/payments, supplier payments, arrivals/departures and booked services.
+- Restores the original Archives card/grid formatting without changing any archive data or archive rules.
+- No Supabase SQL is required.
