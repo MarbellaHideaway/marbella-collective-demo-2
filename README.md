@@ -156,3 +156,19 @@ This patch updates the villa booking financial workflow without requiring a data
 - Payment, admin and information tasks remain **All day**.
 - Timed items are sorted chronologically within the day; genuine All day items remain grouped first.
 - No Supabase migration is required.
+
+
+## v3.3.19 — Villa payments & operations refinement
+
+This update keeps v3.3.18 as the baseline and adds the latest operational fixes:
+
+- Villa arrivals default to **16:00** and departures to **12:00**, while remaining editable.
+- Daily Operations and Operations Centre use those times rather than showing All day.
+- Boat, chef and other timed services continue to use their recorded event/start time.
+- Guests with a timed event are kept together and prioritised at the top of each day; their items are then ordered chronologically.
+- Payment/admin rows remain All day.
+- Informational **Payment arrangement** rows are removed from Operations Centre.
+- When a staged villa second/further payment is recorded, the next guest payment advances to the final balance and the **supplier amount due becomes that final amount, due 30 days before arrival**.
+- Sidebar active-state handling is reset on every view change so Operations Centre cannot remain highlighted after navigation.
+- Supabase resource validation now accepts **musician**, allowing suppliers such as Leo the Sax to be added under Musicians.
+- Run `supabase/032_villa_payments_operations_resources.sql` once before testing this release.
