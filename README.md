@@ -211,3 +211,14 @@ Run `supabase/033_second_deposit_paid_date.sql` once before testing the new seco
 - Operational day headers use the full format **Thursday 3rd September 2026**.
 - The Daily Operations date selector that defaults to today is shown in **bold**.
 - No Supabase SQL is required.
+
+
+## v3.3.24 — supplier timing + Daily Operations date
+- Supplier payments due **on the event/service day** now inherit the event time.
+  - Boat supplier payment → boat sailing time.
+  - Chef supplier payment → chef/event time.
+  - Other timed services → recorded service time.
+- If a supplier payment is due on a different date from the event, it remains **All day**.
+- Operations Centre day headers now use the full format **Tuesday 25th August 2026**.
+- The Daily Operations default/selected date is now explicitly rendered in bold.
+- No Supabase SQL is required.

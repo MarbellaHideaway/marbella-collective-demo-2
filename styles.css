@@ -484,3 +484,18 @@ button.is-pressed{
 .daily-head-actions input[type="date"]{
   font-weight:800;
 }
+
+
+/* v3.3.24 — selected Daily Operations date */
+input#dailyOperationsDate{
+  font-weight:900 !important;
+  -webkit-text-fill-color:currentColor;
+}
+input#dailyOperationsDate::-webkit-datetime-edit,
+input#dailyOperationsDate::-webkit-datetime-edit-fields-wrapper,
+input#dailyOperationsDate::-webkit-datetime-edit-text,
+input#dailyOperationsDate::-webkit-datetime-edit-day-field,
+input#dailyOperationsDate::-webkit-datetime-edit-month-field,
+input#dailyOperationsDate::-webkit-datetime-edit-year-field{
+  font-weight:900 !important;
+}
