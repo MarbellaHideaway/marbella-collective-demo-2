@@ -247,3 +247,23 @@ No Supabase SQL is required because `second_deposit_paid_date` was added previou
 - Supplier amount due becomes the remaining final balance and defaults to 30 days before arrival.
 - The paid date remains visible after the booking advances to Final balance.
 - No Supabase SQL is required.
+
+
+## v3-19 — visible villa further-deposit paid date
+- Moves **Further deposit paid date / Second deposit paid date** directly beside the further-deposit due-date area in the Financial section.
+- The control no longer sits much farther down the form after supplier/payment fields.
+- Works with the v3-18 custom further-deposit logic already added.
+- Upload `index.html`, `app.js`, and `styles.css` for this patch.
+- No Supabase SQL required.
+
+
+## v3-20 — first full mobile responsive pass
+- Adds a proper mobile viewport.
+- Converts the desktop sidebar into a slide-out mobile drawer with backdrop.
+- Prevents horizontal scrolling across the console.
+- Stacks dashboard, booking, archive, supplier, Daily Operations and Operations Centre layouts for phone screens.
+- Makes booking filters and action buttons phone-safe.
+- Converts New Booking and edit-booking forms to one-column mobile layouts.
+- Makes detail drawers and modals fit within the iPhone viewport.
+- Keeps desktop layout unchanged above 820px.
+- No Supabase SQL is required.

@@ -3304,3 +3304,19 @@ $('dailyPeriodSelect')?.addEventListener('change',renderDailyOperations);
 
 $('bookingType')?.addEventListener('change',()=>updateBookingWorkspaceTitle(bookings.find(x=>String(x.id)===String($('bookingId')?.value))));
 $('guestName')?.addEventListener('input',()=>updateBookingWorkspaceTitle(bookings.find(x=>String(x.id)===String($('bookingId')?.value))));
+
+const mobileMenuBackdrop=$('mobileMenuBackdrop');
+function syncMobileMenuBackdrop(){
+  const open=document.querySelector('.sidebar')?.classList.contains('open');
+  mobileMenuBackdrop?.classList.toggle('show',Boolean(open));
+  mobileMenuBackdrop?.setAttribute('aria-hidden',open?'false':'true');
+}
+$('mobileNav')?.addEventListener('click',()=>setTimeout(syncMobileMenuBackdrop,0));
+mobileMenuBackdrop?.addEventListener('click',()=>{
+  document.querySelector('.sidebar')?.classList.remove('open');
+  syncMobileMenuBackdrop();
+});
+document.querySelectorAll('.nav-item').forEach(x=>x.addEventListener('click',()=>{
+  document.querySelector('.sidebar')?.classList.remove('open');
+  syncMobileMenuBackdrop();
+}));
