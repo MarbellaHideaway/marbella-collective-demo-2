@@ -234,3 +234,16 @@ Run `supabase/033_second_deposit_paid_date.sql` once before testing the new seco
 7. Staged villa payments keep a visible Second deposit paid date field even after moving to Final balance; the date is saved with the booking and drives the final supplier amount/date rule.
 
 No Supabase SQL is required because `second_deposit_paid_date` was added previously.
+
+
+## v3-18 — custom villa further-deposit workflow
+- Fixes custom villa payment arrangements such as Kelly Beattie's.
+- When a villa is on **Custom arrangement** and the current payment stage is **Further deposit**, the Financial screen now shows:
+  - Further deposit amount
+  - Further deposit due date
+  - **Further deposit paid date**
+  - Record further deposit as paid
+- Recording that payment creates a payment transaction, saves the paid date, advances the booking to **Final balance**, and recalculates the remaining guest balance.
+- Supplier amount due becomes the remaining final balance and defaults to 30 days before arrival.
+- The paid date remains visible after the booking advances to Final balance.
+- No Supabase SQL is required.

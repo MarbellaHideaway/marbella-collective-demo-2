@@ -2015,8 +2015,34 @@ function applyMarbellaHideawayPaymentDefaults(force=false){
   }
 
   if(!meta){
-    // Custom arrangements stay fully editable.
+    // Custom arrangements stay fully editable, but if the booking is currently
+    // waiting for a further deposit we still expose a proper paid-date action.
     if($('depositPaidDate'))$('depositPaidDate').readOnly=true;
+
+    const customFurther=existing&&$('nextPaymentStage')?.value==='further_deposit';
+    $('balanceDueDateWrap')?.classList.toggle('is-hidden',false);
+    $('finalPaymentAmountWrap')?.classList.toggle('is-hidden',!customFurther);
+    $('stagedPaymentActionWrap')?.classList.toggle('is-hidden',!customFurther);
+
+    if(customFurther){
+      if($('nextPaymentAmountLabel'))$('nextPaymentAmountLabel').textContent='Further deposit';
+      if($('nextPaymentDueLabel'))$('nextPaymentDueLabel').textContent='Further deposit due date';
+      if($('stagedPaymentActionLabel'))$('stagedPaymentActionLabel').textContent='Further deposit paid date';
+      if($('stagedPaymentPaidDate'))$('stagedPaymentPaidDate').value=booking?.second_deposit_paid_date||'';
+      if($('recordStagedPayment')){
+        $('recordStagedPayment').textContent='Record further deposit as paid';
+        $('recordStagedPayment').classList.remove('is-hidden');
+      }
+
+      const customFinal=Math.max(
+        0,
+        total
+        - paidForCurrency(booking,$('bookingCurrency')?.value||bookingCurrency(booking))
+        - Number($('nextPaymentAmount')?.value||0)
+      );
+      if($('finalPaymentAmount'))$('finalPaymentAmount').value=money(customFinal,$('bookingCurrency')?.value||'GBP');
+    }
+
     updatePaymentSummaryPreview();
     return;
   }
@@ -2899,16 +2925,49 @@ window.manageCurrentBookingPayments=()=>{
 window.recordCurrentStagedPayment=async()=>{
   const id=$('bookingId')?.value;if(!id)return;
   const b=bookings.find(x=>String(x.id)===String(id));if(!b)return;
-  const meta=villaStrategyMeta($('paymentStrategy')?.value||b.payment_strategy);if(!meta?.staged)return;
-  const amount=Number($('nextPaymentAmount')?.value||0);if(amount<=0)return;
-  const payDate=$('stagedPaymentPaidDate')?.value||todayISO();
+
+  const strategy=$('paymentStrategy')?.value||b.payment_strategy||'custom';
+  const meta=villaStrategyMeta(strategy);
+  const isCustomFurther=!meta&&($('nextPaymentStage')?.value||b.next_payment_stage)==='further_deposit';
+  if(!meta?.staged&&!isCustomFurther)return;
+
+  const amount=Number($('nextPaymentAmount')?.value||0);
+  if(amount<=0){$('bookingMessage').textContent='Enter the further deposit amount first.';return;}
+
+  const payDate=$('stagedPaymentPaidDate')?.value;
+  if(!payDate){$('bookingMessage').textContent='Enter the date the further deposit was paid.';return;}
+
   const currency=bookingCurrency(b);
-  const reference=meta.stageName==='second_deposit'?'Second deposit':'Further staged payment';
-  const ins=await supabaseClient.from('booking_payments').insert({booking_id:id,payment_date:payDate,payment_type:'deposit',amount,payment_method:'bank_transfer',reference,currency});
-  if(ins.error){$('bookingMessage').textContent=ins.error.message;setSaveStatus('error','Could not record payment');return;}
-  const finalAmount=meta.finalPct?Number(b.total_rental||0)*(meta.finalPct/100):Math.max(0,Number(b.total_rental||0)-Number(b.deposit_paid||0)-amount);
-  const finalDate=$('balanceDueDate')?.value||isoDateMinusDays($('arrivalDate')?.value||b.arrival_date,meta.finalDays);
-  const supplierDueDate=isoDateMinusDays($('arrivalDate')?.value||b.arrival_date,30);
+  const reference=meta?.stageName==='second_deposit'
+    ?'Second deposit'
+    :(isCustomFurther?'Further deposit':'Further staged payment');
+
+  const ins=await supabaseClient.from('booking_payments').insert({
+    booking_id:id,
+    payment_date:payDate,
+    payment_type:'deposit',
+    amount,
+    payment_method:'bank_transfer',
+    reference,
+    currency
+  });
+  if(ins.error){
+    $('bookingMessage').textContent=ins.error.message;
+    setSaveStatus('error','Could not record payment');
+    return;
+  }
+
+  const total=Number(b.total_rental||$('totalRental')?.value||0);
+  const alreadyPaid=paidForCurrency(b,currency);
+  const finalAmount=meta?.finalPct
+    ? total*(meta.finalPct/100)
+    : Math.max(0,total-alreadyPaid-amount);
+
+  const finalDays=meta?.finalDays||30;
+  const arrival=$('arrivalDate')?.value||b.arrival_date;
+  const finalDate=$('balanceDueDate')?.value||isoDateMinusDays(arrival,finalDays);
+  const supplierDueDate=isoDateMinusDays(arrival,30);
+
   const upd=await supabaseClient.from('bookings').update({
     next_payment_amount:finalAmount,
     next_payment_due_date:finalDate,
@@ -2918,18 +2977,33 @@ window.recordCurrentStagedPayment=async()=>{
     supplier_amount_owed:finalAmount,
     supplier_payment_due_date:supplierDueDate,
     supplier_currency:currency,
-    second_deposit_paid_date:meta.stageName==='second_deposit'?payDate:(b.second_deposit_paid_date||null)
+    second_deposit_paid_date:payDate
   }).eq('id',id);
-  if(upd.error){$('bookingMessage').textContent=upd.error.message;setSaveStatus('error','Payment recorded; schedule update failed');return;}
+
+  if(upd.error){
+    $('bookingMessage').textContent=upd.error.message;
+    setSaveStatus('error','Payment recorded; schedule update failed');
+    return;
+  }
+
   await loadData();
   const refreshed=bookings.find(x=>String(x.id)===String(id));
-  $('nextPaymentStage').value='final_balance';$('nextPaymentAmount').value=finalAmount.toFixed(2);$('nextPaymentDueDate').value=finalDate||'';
+
+  if($('nextPaymentStage'))$('nextPaymentStage').value='final_balance';
+  if($('nextPaymentAmount'))$('nextPaymentAmount').value=finalAmount.toFixed(2);
+  if($('nextPaymentDueDate'))$('nextPaymentDueDate').value=finalDate||'';
   if($('supplierAmountOwed'))$('supplierAmountOwed').value=finalAmount.toFixed(2);
   if($('supplierPaymentDueDate'))$('supplierPaymentDueDate').value=supplierDueDate||'';
   if($('supplierCurrency'))$('supplierCurrency').value=currency;
-  $('stagedPaymentActionWrap')?.classList.add('is-hidden');
+  if($('stagedPaymentPaidDate'))$('stagedPaymentPaidDate').value=payDate;
+  if($('recordStagedPayment'))$('recordStagedPayment').classList.add('is-hidden');
   if($('finalPaymentAmount'))$('finalPaymentAmount').value=money(finalAmount,currency);
-  setSaveStatus('saved','Payment recorded');updatePaymentSummaryPreview();
+
+  // Keep the paid date visible for audit/reference after advancing to final balance.
+  $('stagedPaymentActionWrap')?.classList.remove('is-hidden');
+
+  setSaveStatus('saved','Further deposit recorded');
+  updatePaymentSummaryPreview();
   renderEditItineraryPanel(refreshed);
 };
 window.openPaymentModal=id=>{
