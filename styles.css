@@ -1025,3 +1025,67 @@ input#dailyOperationsDate::-webkit-datetime-edit-year-field{
     padding:8px 12px!important;
   }
 }
+
+/* =========================================================
+   v3-22 — MARBELLA COLLECTIVE BRAND COLOURS
+   Visual-only brand pass. No booking logic changed.
+   Palette sampled/approximated from supplied Marbella Collective mark.
+   ========================================================= */
+:root{
+  --green:#e84425;
+  --green-2:#d83b20;
+  --sage:#f8ded7;
+  --ivory:#f7f4ed;
+  --stone:#f2efe8;
+  --ink:#1d211f;
+  --muted:#777a75;
+  --line:#ddd9d1;
+  --warning:#f1e3bf;
+  --danger:#f4d8d2;
+  --shadow:0 18px 50px rgba(49,37,31,.11);
+}
+
+/* Brand/navigation surfaces */
+.sidebar{background:#202522;color:#fff}
+.sidebar .brand-row span,.sidebar-bottom{color:#d5d4cf}
+.nav-item{color:#e4e1db}
+.nav-item.active,.nav-item:hover{background:#e84425;color:#fff}
+.button.primary{background:#e84425;color:#fff}
+.button.primary:hover{background:#d83b20}
+.button.secondary{color:#d83b20}
+.text-button,.row-actions button{color:#d83b20}
+.brand-mark{background:#f8ded7;color:#d83b20}
+.eyebrow,.section-kicker{color:#d83b20}
+input:focus,select:focus,textarea:focus{outline-color:rgba(232,68,37,.15);border-color:#e84425}
+
+/* Main accents */
+.metric-card.revenue:before,.metric-card.cash:before{background:#e84425}
+.guest-avatar{background:#f8ded7;color:#d83b20}
+.balance-text{color:#d83b20}
+.detail-tab.active{background:#f8ded7;color:#c9361d}
+.booking-hero>div{background:#e84425}
+.booking-hero>div:nth-child(2){background:#d83b20}
+.booking-hero>div:nth-child(3){background:#b9311b}
+.hero-label,.booking-hero small{color:#fff2ee}
+.timeline-item.done>span{background:#e84425}
+.service-icon{background:#f8ded7;color:#d83b20}
+.form-section-title{color:#d83b20}
+
+/* Keep semantic status colours semantic rather than orange */
+.badge:not(.cancelled):not(.lead):not(.completed),
+.status-dot.yes,
+.task-row.done .task-check{
+  background:#dcebe2;
+  color:#246a4b;
+}
+.badge.cancelled{background:#f5d8d2;color:#9b3327}
+.badge.lead{background:#f7e7bd;color:#745416}
+.badge.completed{background:#e8e9e5;color:#555d57}
+
+/* Login should feel like the brand without becoming an orange wall */
+.auth-intro{background:linear-gradient(145deg,#e84425,#c9341c)}
+
+/* Mobile browser/header accents */
+@media(max-width:760px){
+  .mobile-header{border-bottom:3px solid #e84425}
+}
