@@ -222,3 +222,15 @@ Run `supabase/033_second_deposit_paid_date.sql` once before testing the new seco
 - Operations Centre day headers now use the full format **Tuesday 25th August 2026**.
 - The Daily Operations default/selected date is now explicitly rendered in bold.
 - No Supabase SQL is required.
+
+
+## v3.3.25 — seven targeted fixes
+1. Supplier payments due on the event day inherit the linked event time, including chef bookings.
+2. Daily Operations selected/today date is bold black.
+3. Operations Centre active navigation state is cleared when moving to another screen.
+4. Supplier Remove updates immediately without refreshing.
+5. Removed suppliers disappear; Restore rows/buttons are no longer shown.
+6. Archive guest identity text is right-aligned consistently.
+7. Staged villa payments keep a visible Second deposit paid date field even after moving to Final balance; the date is saved with the booking and drives the final supplier amount/date rule.
+
+No Supabase SQL is required because `second_deposit_paid_date` was added previously.

@@ -499,3 +499,30 @@ input#dailyOperationsDate::-webkit-datetime-edit-month-field,
 input#dailyOperationsDate::-webkit-datetime-edit-year-field{
   font-weight:900 !important;
 }
+
+
+/* v3.3.25 — Daily Operations selected date */
+input#dailyOperationsDate,
+#dailyOperationsDate,
+.daily-head-actions input[type="date"]{
+  font-weight:900 !important;
+  color:#111 !important;
+  -webkit-text-fill-color:#111 !important;
+}
+input#dailyOperationsDate::-webkit-datetime-edit,
+input#dailyOperationsDate::-webkit-datetime-edit-fields-wrapper,
+input#dailyOperationsDate::-webkit-datetime-edit-text,
+input#dailyOperationsDate::-webkit-datetime-edit-day-field,
+input#dailyOperationsDate::-webkit-datetime-edit-month-field,
+input#dailyOperationsDate::-webkit-datetime-edit-year-field{
+  font-weight:900 !important;
+  color:#111 !important;
+  -webkit-text-fill-color:#111 !important;
+}
+
+
+/* v3.3.25 — archive guest identity alignment */
+.archive-identity{
+  text-align:right;
+  align-items:flex-end;
+}
