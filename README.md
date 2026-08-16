@@ -267,3 +267,15 @@ No Supabase SQL is required because `second_deposit_paid_date` was added previou
 - Makes detail drawers and modals fit within the iPhone viewport.
 - Keeps desktop layout unchanged above 820px.
 - No Supabase SQL is required.
+
+
+## v3-21 — mobile pass 2
+- Dashboard Add booking button moved to a phone-safe full-width layout.
+- Financial summary numbers reduced on mobile for better wrapping.
+- Bookings toolbar stacks vertically: search, booking type, merge matching guests, export CSV.
+- Booking rows/cards are forced into a one-column phone card layout.
+- Daily Operations controls now stack below the heading.
+- Suppliers Add new supplier type becomes a full-width mobile action.
+- Operations Centre Back to dashboard moves below the intro and filter pills are compacted.
+- Desktop layout remains unchanged.
+- No Supabase SQL required.
