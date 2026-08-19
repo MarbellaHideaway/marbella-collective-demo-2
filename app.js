@@ -1,9 +1,10 @@
-let supabaseClient=null, bookings=[], payments=[], transfers=[], boats=[], chefs=[], experiences=[], resources=[], taskDismissals=[], selectedBooking=null, activeDetailTab='customer', bookingSort={key:'date',direction:'asc'};
+let supabaseClient=null, bookings=[], payments=[], transfers=[], boats=[], chefs=[], experiences=[], resources=[], taskDismissals=[], userActivity=[], selectedBooking=null, activeDetailTab='customer', bookingSort={key:'date',direction:'asc'};
+let currentAuthUser=null, activityHeartbeatTimer=null;
 let workspaceDirty=false, workspaceObserver=null, pendingDeleteId=null, pendingDeleteContext=null, pendingDuplicate=null, allowDuplicateOnce=false;
 let wizardBookingType='villa_stay';
 let operationsFilter='all', operationsTimeScope='upcoming';
 const $=id=>document.getElementById(id);
-const views={dashboard:$('dashboardSection'),bookings:$('bookingsSection'),archives:$('archivesSection'),settings:$('settingsSection'),daily:$('dailySection'),operations:$('operationsSection')};
+const views={dashboard:$('dashboardSection'),bookings:$('bookingsSection'),archives:$('archivesSection'),settings:$('settingsSection'),activity:$('activitySection'),daily:$('dailySection'),operations:$('operationsSection')};
 const currencyCode=c=>['EUR','GBP'].includes(String(c||'').toUpperCase())?String(c).toUpperCase():'GBP';
 const money=(n,c='GBP')=>new Intl.NumberFormat('en-GB',{style:'currency',currency:currencyCode(c),maximumFractionDigits:2}).format(Number(n||0));
 const date=v=>v?new Date(v+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
@@ -299,6 +300,124 @@ const nextPaymentState=b=>{
   return'upcoming';
 };
 
+
+function activityDisplayName(userOrRow){
+  const email=String(userOrRow?.email||'').toLowerCase();
+  const metadata=userOrRow?.user_metadata||{};
+  const supplied=metadata.full_name||metadata.name||userOrRow?.display_name;
+  if(String(supplied||'').trim())return String(supplied).trim();
+
+  const known={
+    'simon@marbellahideaway.com':'Simon Kingsnorth',
+    'jack@marbellacollective.co':'Jack Kingsnorth'
+  };
+  if(known[email])return known[email];
+
+  const local=(email.split('@')[0]||'User').replace(/[._-]+/g,' ');
+  return local.replace(/\b\w/g,c=>c.toUpperCase());
+}
+function activityDateTime(value){
+  if(!value)return 'Not recorded yet';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return 'Not recorded yet';
+  return d.toLocaleString('en-GB',{
+    day:'numeric',month:'short',year:'numeric',
+    hour:'2-digit',minute:'2-digit'
+  });
+}
+function activityMinutesAgo(value){
+  if(!value)return null;
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return null;
+  return Math.max(0,Math.floor((Date.now()-d.getTime())/60000));
+}
+function activityStatus(row){
+  const mins=activityMinutesAgo(row?.last_seen_at);
+  if(mins!==null&&mins<=5)return {label:'Active now',className:'active'};
+  if(mins===null)return {label:'Not active yet',className:'offline'};
+  if(mins<60)return {label:`Seen ${mins} min${mins===1?'':'s'} ago`,className:'recent'};
+  if(mins<1440){
+    const hours=Math.floor(mins/60);
+    return {label:`Seen ${hours} hour${hours===1?'':'s'} ago`,className:'offline'};
+  }
+  return {label:'Offline',className:'offline'};
+}
+async function recordUserActivity(user,{login=false}={}){
+  if(!supabaseClient||!user?.id)return;
+  const now=new Date().toISOString();
+  const payload={
+    user_id:user.id,
+    email:user.email||'',
+    display_name:activityDisplayName(user),
+    last_seen_at:now
+  };
+  if(login)payload.last_login_at=now;
+
+  const {data,error}=await supabaseClient
+    .from('user_activity')
+    .upsert(payload,{onConflict:'user_id'})
+    .select()
+    .single();
+
+  if(error){
+    console.error('User activity update failed',error);
+    return;
+  }
+
+  const index=userActivity.findIndex(x=>String(x.user_id)===String(user.id));
+  if(index>=0)userActivity[index]=data;
+  else userActivity.push(data);
+  renderUserActivity();
+}
+function startActivityHeartbeat(user){
+  currentAuthUser=user||currentAuthUser;
+  if(activityHeartbeatTimer)clearInterval(activityHeartbeatTimer);
+  if(!currentAuthUser)return;
+  recordUserActivity(currentAuthUser);
+  activityHeartbeatTimer=setInterval(()=>{
+    if(document.visibilityState==='visible')recordUserActivity(currentAuthUser);
+  },60000);
+}
+function renderUserActivity(){
+  const root=$('userActivityList');
+  if(!root)return;
+
+  const rows=(userActivity||[]).slice().sort((a,b)=>{
+    const aActive=(activityMinutesAgo(a.last_seen_at)??999999)<=5;
+    const bActive=(activityMinutesAgo(b.last_seen_at)??999999)<=5;
+    if(aActive!==bActive)return aActive?-1:1;
+    return String(a.display_name||a.email).localeCompare(String(b.display_name||b.email));
+  });
+
+  if(!rows.length){
+    root.innerHTML='<div class="empty-state">No user activity recorded yet. Activity will appear after each user signs in.</div>';
+    return;
+  }
+
+  root.innerHTML=rows.map(row=>{
+    const status=activityStatus(row);
+    const initial=(row.display_name||row.email||'?').trim().charAt(0).toUpperCase();
+    return `<article class="user-activity-card">
+      <div class="user-activity-person">
+        <span class="user-activity-avatar">${esc(initial)}</span>
+        <div>
+          <strong>${esc(row.display_name||activityDisplayName(row))}</strong>
+          <small>${esc(row.email||'')}</small>
+        </div>
+      </div>
+      <div class="user-activity-stat">
+        <span>Last login</span>
+        <strong>${esc(activityDateTime(row.last_login_at))}</strong>
+      </div>
+      <div class="user-activity-stat">
+        <span>Last seen</span>
+        <strong>${esc(activityDateTime(row.last_seen_at))}</strong>
+      </div>
+      <span class="user-activity-status ${status.className}">${esc(status.label)}</span>
+    </article>`;
+  }).join('');
+}
+
 let passwordRecoveryActive=false;
 async function init(){
   try{
@@ -325,16 +444,23 @@ async function init(){
   }catch(e){console.error(e);$('boot').textContent='Unable to open the app. Please refresh.';}
 }
 function show(id){['boot','setupView','loginView','resetPasswordView','appView'].forEach(x=>$(x)?.classList.add('hidden'));$(id).classList.remove('hidden');}
-async function enterApp(user){show('appView');$('userEmail').textContent=user.email||'';await loadData();}
+async function enterApp(user){
+  currentAuthUser=user;
+  show('appView');
+  $('userEmail').textContent=user.email||'';
+  startActivityHeartbeat(user);
+  await loadData();
+}
 async function loadData(){
-  const [bookingResult,paymentResult,boatResult,chefResult,experienceResult,resourceResult,dismissalResult]=await Promise.all([
+  const [bookingResult,paymentResult,boatResult,chefResult,experienceResult,resourceResult,dismissalResult,userActivityResult]=await Promise.all([
     supabaseClient.from('bookings').select('*').order('service_date',{ascending:true,nullsFirst:false}).order('arrival_date',{ascending:true,nullsFirst:false}),
     supabaseClient.from('booking_payments').select('*').order('payment_date',{ascending:false}).order('created_at',{ascending:false}),
     supabaseClient.from('booking_boats').select('*'),
     supabaseClient.from('booking_chefs').select('*'),
     supabaseClient.from('booking_experiences').select('*').order('service_date',{ascending:true}),
     supabaseClient.from('master_resources').select('*').order('resource_type').order('sort_order').order('name'),
-    supabaseClient.from('operational_task_dismissals').select('*')
+    supabaseClient.from('operational_task_dismissals').select('*'),
+    supabaseClient.from('user_activity').select('*').order('display_name',{ascending:true})
   ]);
   bookings=bookingResult.error?[]:(bookingResult.data||[]);
   payments=paymentResult.error?[]:(paymentResult.data||[]);
@@ -343,6 +469,7 @@ async function loadData(){
   experiences=experienceResult.error?[]:(experienceResult.data||[]);
   resources=resourceResult.error?[]:(resourceResult.data||[]);
   taskDismissals=dismissalResult.error?[]:(dismissalResult.data||[]);
+  userActivity=userActivityResult.error?[]:(userActivityResult.data||[]);
   rebuildLookupIndex();
   if(bookingResult.error)console.error(bookingResult.error);
   if(paymentResult.error)console.error(paymentResult.error);
@@ -351,7 +478,9 @@ async function loadData(){
   if(experienceResult.error)console.error(experienceResult.error);
   if(resourceResult.error)console.error(resourceResult.error);
   if(dismissalResult.error)console.error(dismissalResult.error);
+  if(userActivityResult.error)console.error(userActivityResult.error);
   renderAll();
+  renderUserActivity();
   if(selectedBooking){selectedBooking=bookings.find(b=>String(b.id)===String(selectedBooking.id))||null;if(selectedBooking)renderDetail();}
 }
 
@@ -1630,7 +1759,7 @@ function switchView(name){
   document.querySelector('.sidebar')?.classList.remove('open');
   if(name==='bookings')renderBookings();
   if(name==='archives')renderArchives();
-  if(name==='settings')renderResources();if(name==='daily')renderDailyOperations();if(name==='operations')renderOperationsCentre();
+  if(name==='settings')renderResources();if(name==='activity')renderUserActivity();if(name==='daily')renderDailyOperations();if(name==='operations')renderOperationsCentre();
 }
 function setSaveStatus(state,text){
   const el=$('saveStatus');if(!el)return;
@@ -3013,7 +3142,15 @@ window.openPaymentModal=id=>{
 function closePaymentModal(){$('paymentModal').classList.add('hidden');$('paymentModal').setAttribute('aria-hidden','true');}
 window.deletePayment=async id=>{if(!confirm('Delete this payment transaction? The booking balance will update automatically.'))return;const{error}=await supabaseClient.from('booking_payments').delete().eq('id',id);if(error)alert(error.message);else await loadData();};
 
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMessage').textContent='';$('loginButton').disabled=true;const{error}=await supabaseClient.auth.signInWithPassword({email:$('email').value,password:$('password').value});$('loginButton').disabled=false;if(error)$('loginMessage').textContent=error.message;});
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  $('loginMessage').textContent='';
+  $('loginButton').disabled=true;
+  const{data,error}=await supabaseClient.auth.signInWithPassword({email:$('email').value,password:$('password').value});
+  $('loginButton').disabled=false;
+  if(error){$('loginMessage').textContent=error.message;return;}
+  if(data?.user)await recordUserActivity(data.user,{login:true});
+});
 $('resetPasswordForm')?.addEventListener('submit',async e=>{
   e.preventDefault();
   const a=$('newPassword').value,b=$('confirmNewPassword').value,msg=$('resetPasswordMessage');
@@ -3031,7 +3168,15 @@ $('resetPasswordForm')?.addEventListener('submit',async e=>{
 });
 $('managePaymentsButton')?.addEventListener('click',window.manageCurrentBookingPayments);
 
-$('logoutButton').addEventListener('click',()=>supabaseClient.auth.signOut());$('retryConfig').addEventListener('click',()=>location.reload());$('searchInput').addEventListener('input',renderBookings);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&currentAuthUser)recordUserActivity(currentAuthUser);
+});
+$('logoutButton').addEventListener('click',()=>{
+  if(activityHeartbeatTimer)clearInterval(activityHeartbeatTimer);
+  activityHeartbeatTimer=null;
+  currentAuthUser=null;
+  supabaseClient.auth.signOut();
+});$('retryConfig').addEventListener('click',()=>location.reload());$('searchInput').addEventListener('input',renderBookings);
 document.querySelectorAll('[data-open-booking]').forEach(x=>x.addEventListener('click',openBookingWizard));document.querySelectorAll('[data-close-modal]').forEach(x=>x.addEventListener('click',()=>closeModal()));document.querySelectorAll('[data-close-delete-confirm]').forEach(x=>x.addEventListener('click',closeDeleteConfirm));document.querySelectorAll('[data-close-duplicate]').forEach(x=>x.addEventListener('click',closeDuplicateWarning));$('confirmDeleteBooking').addEventListener('click',performDeleteBooking);document.querySelectorAll('[data-close-detail]').forEach(x=>x.addEventListener('click',closeDetail));document.querySelectorAll('[data-close-payment]').forEach(x=>x.addEventListener('click',closePaymentModal));document.querySelectorAll('.nav-item').forEach(x=>x.addEventListener('click',()=>switchView(x.dataset.view)));document.querySelectorAll('[data-view-button]').forEach(x=>x.addEventListener('click',()=>switchView(x.dataset.viewButton)));document.querySelectorAll('.detail-tab').forEach(x=>x.addEventListener('click',()=>{activeDetailTab=x.dataset.detailTab;document.querySelectorAll('.detail-tab').forEach(t=>t.classList.toggle('active',t===x));renderDetail();}));$('detailEdit').addEventListener('click',event=>{
   event.preventDefault();
   event.stopPropagation();

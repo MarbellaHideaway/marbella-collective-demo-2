@@ -1089,3 +1089,45 @@ input:focus,select:focus,textarea:focus{outline-color:rgba(232,68,37,.15);border
 @media(max-width:760px){
   .mobile-header{border-bottom:3px solid #e84425}
 }
+
+
+/* v3-23 — User Activity */
+.user-activity-panel{padding:0;overflow:hidden}
+.user-activity-list{display:flex;flex-direction:column}
+.user-activity-card{
+  display:grid;
+  grid-template-columns:minmax(260px,1.35fr) minmax(190px,1fr) minmax(190px,1fr) auto;
+  gap:22px;
+  align-items:center;
+  padding:20px 22px;
+  border-top:1px solid var(--line,#e4dfd8);
+  background:#fff;
+}
+.user-activity-card:first-child{border-top:0}
+.user-activity-person{display:flex;align-items:center;gap:14px;min-width:0}
+.user-activity-avatar{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:46px;height:46px;flex:0 0 46px;border-radius:50%;
+  background:var(--brand,#e85e3f);color:#fff;font-weight:900;font-size:18px;
+}
+.user-activity-person>div,
+.user-activity-stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.user-activity-person strong{font-size:17px}
+.user-activity-person small,.user-activity-stat span{color:var(--muted,#7c7974)}
+.user-activity-stat strong{font-size:15px}
+.user-activity-status{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:112px;padding:8px 11px;border-radius:999px;font-size:13px;font-weight:800;
+}
+.user-activity-status.active{background:#e7f6ee;color:#16734f}
+.user-activity-status.recent{background:#fff2dc;color:#a1600b}
+.user-activity-status.offline{background:#f0efed;color:#696662}
+
+@media(max-width:820px){
+  .user-activity-card{
+    grid-template-columns:1fr;
+    gap:12px;
+    padding:17px;
+  }
+  .user-activity-status{justify-self:start}
+}
