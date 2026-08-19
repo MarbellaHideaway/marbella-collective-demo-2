@@ -35,7 +35,7 @@
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div><div class="brand-row"><div class="brand-mark">MC</div><div><strong>Marbella Collective</strong><span>Operating system · Demo 2</span></div></div><nav><button class="nav-item active" data-view="dashboard">Dashboard</button><button class="nav-item" data-view="bookings">Bookings</button><button class="nav-item nav-subitem" data-view="archives">Archives</button><button class="nav-item" data-view="daily">Daily Operations</button><button class="nav-item" data-view="operations">Operations Centre</button><button class="nav-item" data-view="settings">Suppliers</button></nav></div>
+      <div><div class="brand-row"><div class="brand-mark">MC</div><div><strong>Marbella Collective</strong><span>Operating system · Demo 2</span></div></div><nav><button class="nav-item active" data-view="dashboard">Dashboard</button><button class="nav-item" data-view="bookings">Bookings</button><button class="nav-item nav-subitem" data-view="archives">Archives</button><button class="nav-item" data-view="daily">Daily Operations</button><button class="nav-item" data-view="operations">Operations Centre</button><button class="nav-item" data-view="settings">Suppliers</button><button class="nav-item" data-view="activity">User Activity</button></nav></div>
       <div class="sidebar-bottom"><span id="userEmail"></span><button id="logoutButton" class="text-button">Sign out</button></div>
     </aside>
     <main class="main">
@@ -88,6 +88,21 @@
     <button id="addSupplierTypeButton" class="button primary">Add new supplier type</button>
   </div>
   <div id="supplierTypeGrid" class="supplier-type-grid"></div>
+</section>
+<section id="activitySection" class="view-section hidden">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Team access</p>
+      <h1>User Activity</h1>
+      <p class="muted">Visible to all signed-in Marbella Collective users. See when each user last logged in and when they were last active in the console.</p>
+    </div>
+  </div>
+  <div class="panel user-activity-panel">
+    <div class="panel-head">
+      <div><h2>Console users</h2><p>Active now means the user has used the console within the last five minutes.</p></div>
+    </div>
+    <div id="userActivityList" class="user-activity-list"></div>
+  </div>
 </section>
 <section id="bookingsSection" class="view-section hidden"><div class="page-head"><div><p class="eyebrow">Booking management</p><h1>Bookings</h1></div><button class="button primary" data-open-booking>Add booking</button></div><div class="toolbar"><input id="searchInput" class="search" placeholder="Search customer, villa, service or status…"><select id="bookingTypeFilter" class="filter-select"><option value="all">All booking types</option><option value="villa_stay">Villa stays</option><option value="boat_charter">Boat charters</option><option value="private_chef">Private chefs</option><option value="entertainment">Entertainment</option><option value="decorations">Decorations</option><option value="shopping">Shopping</option><option value="beach_club">Beach clubs</option><option value="other">Other</option></select><button id="mergeCustomers" class="button secondary">Merge matching guests</button><button id="exportButton" class="button secondary">Export CSV</button></div><div class="panel"><div id="bookingsTable"></div></div></section>
 <section id="archivesSection" class="view-section hidden">
