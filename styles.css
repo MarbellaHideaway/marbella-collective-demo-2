@@ -1131,3 +1131,7 @@ input:focus,select:focus,textarea:focus{outline-color:rgba(232,68,37,.15);border
   }
   .user-activity-status{justify-self:start}
 }
+
+
+/* v3-25 — retired chef supplier / assigned-chef inputs */
+.chef-obsolete-field{display:none!important;}

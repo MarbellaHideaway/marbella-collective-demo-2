@@ -279,3 +279,41 @@ No Supabase SQL is required because `second_deposit_paid_date` was added previou
 - Operations Centre Back to dashboard moves below the intro and filter pills are compacted.
 - Desktop layout remains unchanged.
 - No Supabase SQL required.
+
+## v3-22 — Marbella Collective brand colours
+- Visual-only branding pass based on the supplied Marbella Collective logo.
+- Primary buttons, active navigation and key accents now use Marbella Collective coral/orange-red.
+- Main navigation uses charcoal for a premium neutral base.
+- Backgrounds remain warm cream/off-white with white cards and charcoal text.
+- Confirmed/paid/completed states deliberately remain green; due-soon remains amber and overdue remains red so operational meanings stay clear.
+- No JavaScript, booking logic or Supabase changes.
+
+
+## v3-23 — User Activity
+- Adds a **User Activity** page to the left navigation.
+- The page is visible to **all signed-in Marbella Collective users**, not just an administrator.
+- Shows each user's name, email, last login, last seen and an Active now / recent / offline indicator.
+- Last seen refreshes while a user is actively using the console.
+- Each user may update only their own activity record; all authenticated users may read the full team activity list.
+- Run `supabase/034_user_activity.sql` once before deploying/testing this version.
+
+
+## v3-24 — Boat Save hotfix
+- Fixes Save booking failing when creating a boat charter.
+- Root cause: staged-villa payment variables were accidentally placed inside the guest-merge function but referenced by the booking save handler.
+- Moves those variables into the correct booking-save scope.
+- Removes the stray block from Merge matching guests.
+- Adds a save error guard so the Save booking button re-enables and displays an error instead of silently appearing stuck.
+- No Supabase SQL required.
+
+
+## v3-25 — Chef + villa testing fixes
+- Private Chef event location now pulls the active **Villas** supplier list alphabetically, with **Other** at the bottom.
+- Chef final guest payment defaults to the chef event date and is described as cash due on the day.
+- Chef supplier payment due date also defaults to the event date.
+- Chef supplier currency is fixed to **EUR (€)**.
+- Removes the visible **Supplier** and **Assigned chef** fields from Chef & commercial.
+- Villa departure date is constrained to the arrival date or later and its picker is anchored to the arrival month/year.
+- Villa next-payment currency follows the booking currency automatically.
+- For a custom villa booking where the initial deposit is below 50%, the form automatically creates a **Second deposit** stage for the amount needed to reach 50%, shows a second-deposit due-date field and paid-date field, and calculates the remaining 50% final balance.
+- No Supabase SQL required.
