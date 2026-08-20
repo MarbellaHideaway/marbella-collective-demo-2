@@ -139,7 +139,11 @@ function paymentSummaryFor(b){
   const finalDate=b?.balance_due_date||(!meta?.staged?nextDate:null);
   const bookingType=b?.booking_type||'villa_stay';
 
-  if(strategy==='fully_paid'||balance<=0)return 'Fully paid.';
+  // Never describe a booking as fully paid while the booking record still
+  // has a genuine next payment scheduled. This keeps Daily Operations,
+  // Dashboard and booking summaries consistent for every booking type.
+  if(strategy==='fully_paid'&&nextAmount<=0)return 'Fully paid.';
+  if(balance<=0&&nextAmount<=0)return 'Fully paid.';
 
   if(bookingType==='villa_stay'&&meta){
     let summary=`${meta.depositPct}% deposit received (${money(deposit,currency)}).`;
@@ -162,7 +166,10 @@ function paymentSummaryFor(b){
   }
 
   let summary=strategy==='pay_later'?'Nothing to pay until the agreed later date.':strategy==='staged'?'Staged payment arrangement.':'Custom payment arrangement.';
-  if(nextAmount>0)summary+=` Next payment ${money(nextAmount,currency)}${nextDate?` due ${date(nextDate)}`:''}.`;
+  if(nextAmount>0){
+    const paymentLabel=bookingType==='boat_charter'?'Final balance':'Next payment';
+    summary+=` ${paymentLabel} ${money(nextAmount,nextPaymentCurrencyFor(b))}${nextDate?` due ${date(nextDate)}`:''}.`;
+  }
   else if(balance>0)summary+=` ${money(balance,currency)} outstanding.`;
 
   // Boat/custom notes can still form part of the summary; villa standard plans do not rely on notes.

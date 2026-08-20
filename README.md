@@ -341,3 +341,21 @@ No Supabase SQL is required because `second_deposit_paid_date` was added previou
 - Sidebar navigation has a single persistent active item; Operations Centre no longer appears sticky when another section is selected.
 - Supplier Remove now verifies the Supabase update, removes the row immediately, reloads resources, and persists after refresh.
 - No Supabase SQL required for this update.
+
+
+## v3-28 — Payment priority hotfix
+- A villa second-deposit paid date now advances the booking to **Final balance** on normal Save as well as through the dedicated payment button.
+- The next guest payment becomes the remaining 50% and is due 30 days before arrival.
+- The dashboard no longer continues to show the paid second deposit as overdue.
+- Villa supplier payment remains the **full rental value**, not the final guest balance.
+- Villa supplier payment due date remains the **arrival date**.
+- Dashboard supplier warnings now use the actual supplier payment due date, so future supplier payments no longer appear overdue.
+- No Supabase SQL required.
+
+
+## v3-29 — Payment summary consistency
+- Fixes Daily Operations showing **Fully paid** while a booking still has a next payment amount due.
+- Applies the rule consistently to **all booking types**.
+- A booking is only described as fully paid when there is no scheduled next payment remaining.
+- Boat payment notes now label an outstanding scheduled payment as **Final balance**.
+- No Supabase SQL required.
