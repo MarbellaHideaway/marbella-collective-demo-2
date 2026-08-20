@@ -317,3 +317,27 @@ No Supabase SQL is required because `second_deposit_paid_date` was added previou
 - Villa next-payment currency follows the booking currency automatically.
 - For a custom villa booking where the initial deposit is below 50%, the form automatically creates a **Second deposit** stage for the amount needed to reach 50%, shows a second-deposit due-date field and paid-date field, and calculates the remaining 50% final balance.
 - No Supabase SQL required.
+
+
+## v3-26 — Villa deposit hotfix
+- Fixes the **Deposit paid** field being reset to 50% while the user is typing.
+- A manually entered smaller first deposit is now preserved.
+- For a standard 50% villa payment plan, if the first payment is below 50%, the form automatically creates:
+  - Second deposit amount (the amount needed to reach 50%)
+  - Second deposit due date
+  - Second deposit paid date
+  - Remaining 50% final balance
+- Next-payment currency continues to inherit the villa booking currency.
+- No Supabase SQL required.
+
+
+## v3-27 — Testing bundle
+- Villa supplier payment due now defaults to the full villa rental value.
+- Villa supplier payment due date now defaults to the villa arrival date.
+- Villa supplier currency follows the booking currency.
+- Villa concierge boat status options are: Discussed, Quoted, Booked, Confirmed, Booked elsewhere.
+- Discussed is the default villa concierge boat status.
+- Shopping details are hidden from the villa booking workflow for now.
+- Sidebar navigation has a single persistent active item; Operations Centre no longer appears sticky when another section is selected.
+- Supplier Remove now verifies the Supabase update, removes the row immediately, reloads resources, and persists after refresh.
+- No Supabase SQL required for this update.

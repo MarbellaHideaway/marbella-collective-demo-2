@@ -71,7 +71,7 @@ const experienceList=(id,type)=>(lookupIndex.experiences.get(String(id))||[]).fi
 const serviceStatusLabel=s=>({not_booked:'Not booked',enquiry:'Enquiry',awaiting_list:'Awaiting list',requested:'Requested',ordered:'Ordered',delivered:'Delivered',quoted:'Quoted',provisional:'Provisional',confirmed:'Confirmed',completed:'Completed',cancelled:'Cancelled'}[s]||String(s||'Not booked').replace(/_/g,' '));
 const serviceDone=s=>['confirmed','completed','delivered'].includes(s);
 const euro=n=>money(n).replace('£','€');
-const boatStatusLabel=s=>({not_booked:'Not booked',enquiry:'Enquiry',provisional:'Provisional',confirmed:'Confirmed',completed:'Completed',cancelled:'Cancelled'}[s]||'Not booked');
+const boatStatusLabel=s=>({not_booked:'Not booked',discussed:'Discussed',quoted:'Quoted',booked:'Booked',confirmed:'Confirmed',booked_elsewhere:'Booked elsewhere',enquiry:'Enquiry',provisional:'Provisional',completed:'Completed',cancelled:'Cancelled'}[s]||'Discussed');
 const boatStatusClass=s=>`boat-${String(s||'not_booked').replace(/_/g,'-')}`;
 const chefStatusLabel=s=>({not_booked:'Not booked',enquiry:'Enquiry',awaiting_menu:'Awaiting menu',provisional:'Provisional',confirmed:'Confirmed',completed:'Completed',cancelled:'Cancelled'}[s]||'Not booked');
 const chefStatusClass=s=>`chef-${String(s||'not_booked').replace(/_/g,'-')}`;
@@ -631,6 +631,7 @@ function applyBookingTypeTemplate(){
     if($('eventLocationLabel'))$('eventLocationLabel').firstChild.textContent='Event location';
   }else if($('eventLocationLabel'))$('eventLocationLabel').firstChild.textContent=cfg.location;
   $('bookingForm')?.classList.toggle('villa-edit',Boolean($('bookingId')?.value)&&type==='villa_stay');
+  document.querySelectorAll('.villa-shopping-module').forEach(el=>el.classList.toggle('hidden',type==='villa_stay'));
   const editing=Boolean($('bookingId')?.value);
   if(editing){
     const guest=String($('guestName')?.value||'').trim();
@@ -2204,6 +2205,13 @@ function applyMarbellaHideawayPaymentDefaults(force=false){
   if($('nextPaymentCurrency'))$('nextPaymentCurrency').value=$('bookingCurrency')?.value||'GBP';
   if($('depositCurrency'))$('depositCurrency').value=$('bookingCurrency')?.value||'GBP';
 
+  // Villa supplier rule: the full rental is payable to the villa supplier
+  // on the guest's arrival date, in the same currency as the booking.
+  if($('supplierAmountOwed'))$('supplierAmountOwed').value=total.toFixed(2);
+  if($('supplierPaymentDueDate'))$('supplierPaymentDueDate').value=arrival;
+  if($('supplierCurrency'))$('supplierCurrency').value=$('bookingCurrency')?.value||'GBP';
+  if($('supplierPaymentDueDateHelp'))$('supplierPaymentDueDateHelp').textContent='Villa supplier payment is due on the arrival date.';
+
   const staged=Boolean(meta?.staged);
   $('balanceDueDateWrap')?.classList.toggle('is-hidden',!staged);
 
@@ -2439,7 +2447,11 @@ function hydrateSavedBoatEditFields(b){
   if($('boatStartTime'))$('boatStartTime').value=bt.start_time||'';
   if($('boatDuration'))$('boatDuration').value=bt.duration_hours??'';
   if($('boatGuests'))$('boatGuests').value=bt.guests??b.number_of_guests??'';
-  if($('boatStatus'))$('boatStatus').value=effectiveBoatStatus(b);
+  if($('boatStatus')){
+    const savedBoatStatus=effectiveBoatStatus(b);
+    $('boatStatus').value=(b.booking_type==='villa_stay'&&['not_booked','enquiry','provisional','cancelled'].includes(savedBoatStatus))?'discussed':savedBoatStatus;
+    if(!$('boatStatus').value)$('boatStatus').value=b.booking_type==='villa_stay'?'discussed':'confirmed';
+  }
 }
 
 function openModal(b=null,options={}){$('supplierCurrency')?.removeAttribute('data-overridden');
@@ -3430,7 +3442,7 @@ $('bookingForm').addEventListener('submit',async e=>{
     ? Math.max(0,Number($('totalRental').value||0)*0.50)
     : null;
   const stagedSupplierDueDate=stagedSecondPaid?isoDateMinusDays($('arrivalDate').value||currentBooking?.arrival_date,30):null;
-  const payload={customer_id:$('customerId').value||customerMatchKeyFromForm()||null,itinerary_id:$('itineraryId').value||null,booking_type:type,service_title:$('serviceTitle').value.trim()||null,service_date:$('serviceDate').value||null,event_location:conditionalValue('eventLocationSelect','eventLocation'),guest_name:$('guestName').value.trim(),villa_name:type==='villa_stay'?($('villaName').value.trim()||null):null,arrival_date:type==='villa_stay'?($('arrivalDate').value||null):null,departure_date:type==='villa_stay'?($('departureDate').value||null):null,arrival_time:$('arrivalTime').value||null,departure_time:$('departureTime').value||null,number_of_guests:$('guestCount').value?Number($('guestCount').value):null,adults:$('adultCount').value?Number($('adultCount').value):null,children:$('childCount').value?Number($('childCount').value):null,guest_email:$('guestEmail').value.trim()||null,guest_phone:$('guestPhone').value.trim()||null,guest_instagram:$('guestInstagram').value.trim()||null,guest_nationality:conditionalValue('guestNationalitySelect','guestNationality'),total_rental:Number($('totalRental').value||0),deposit_paid:Number($('depositPaid').value||0),deposit_paid_date:(type==='boat_charter'||type==='villa_stay')?boatCreatedDate(bookings.find(x=>String(x.id)===String(id))):($('depositPaidDate').value||null),deposit_currency:$('depositCurrency')?.value||$('bookingCurrency').value,next_payment_amount:Number($('nextPaymentAmount').value||0),next_payment_due_date:type==='boat_charter'?($('serviceDate').value||$('boatDate').value||null):type==='private_chef'?($('chefDate').value||$('serviceDate').value||null):($('nextPaymentDueDate').value||null),next_payment_currency:$('nextPaymentCurrency')?.value||$('bookingCurrency').value,next_payment_stage:$('nextPaymentStage').value||'final_balance',payment_strategy:$('paymentStrategy').value||'custom',second_deposit_paid_date:$('stagedPaymentPaidDate')?.value||null,payment_strategy_notes:$('paymentStrategyNotes').value.trim()||null,supplier_amount_owed:stagedSecondPaid?stagedFinalAmount:Number($('supplierAmountOwed').value||0),supplier_payment_due_date:type==='private_chef'?($('chefDate').value||$('serviceDate').value||null):(stagedSecondPaid?stagedSupplierDueDate:($('supplierPaymentDueDate')?.value||null)),supplier_currency:(type==='boat_charter'||type==='private_chef')?'EUR':$('supplierCurrency').value,booking_currency:type==='boat_charter'?'EUR':$('bookingCurrency').value,commission_currency:$('commissionCurrency').value,balance_due_date:$('balanceDueDate').value||null,commission_rate:selectedCommissionRate()/100,commission_type:$('commissionType').value,commission_fixed_amount:$('commissionType').value==='fixed'?Number($('commissionFixedAmount').value||0):null,damage_deposit:Number($('damageDeposit').value||0),lead_source:$('leadSource').value.trim()||null,status:$('bookingStatus').value,arrival_flight:$('arrivalFlight').value.trim()||null,departure_flight:$('departureFlight').value.trim()||null,arrival_airport:conditionalValue('arrivalAirportSelect','arrivalAirport'),departure_airport:conditionalValue('departureAirportSelect','departureAirport'),flight_details:$('flightDetails').value.trim()||null,chef_booked:['confirmed','completed'].includes($('chefStatus').value),boat_booked:$('boatStatus').value==='confirmed',decorations_booked:['confirmed','completed'].includes($('decorStatus').value),notes:$('bookingNotes').value.trim()||null};
+  const payload={customer_id:$('customerId').value||customerMatchKeyFromForm()||null,itinerary_id:$('itineraryId').value||null,booking_type:type,service_title:$('serviceTitle').value.trim()||null,service_date:$('serviceDate').value||null,event_location:conditionalValue('eventLocationSelect','eventLocation'),guest_name:$('guestName').value.trim(),villa_name:type==='villa_stay'?($('villaName').value.trim()||null):null,arrival_date:type==='villa_stay'?($('arrivalDate').value||null):null,departure_date:type==='villa_stay'?($('departureDate').value||null):null,arrival_time:$('arrivalTime').value||null,departure_time:$('departureTime').value||null,number_of_guests:$('guestCount').value?Number($('guestCount').value):null,adults:$('adultCount').value?Number($('adultCount').value):null,children:$('childCount').value?Number($('childCount').value):null,guest_email:$('guestEmail').value.trim()||null,guest_phone:$('guestPhone').value.trim()||null,guest_instagram:$('guestInstagram').value.trim()||null,guest_nationality:conditionalValue('guestNationalitySelect','guestNationality'),total_rental:Number($('totalRental').value||0),deposit_paid:Number($('depositPaid').value||0),deposit_paid_date:(type==='boat_charter'||type==='villa_stay')?boatCreatedDate(bookings.find(x=>String(x.id)===String(id))):($('depositPaidDate').value||null),deposit_currency:$('depositCurrency')?.value||$('bookingCurrency').value,next_payment_amount:Number($('nextPaymentAmount').value||0),next_payment_due_date:type==='boat_charter'?($('serviceDate').value||$('boatDate').value||null):type==='private_chef'?($('chefDate').value||$('serviceDate').value||null):($('nextPaymentDueDate').value||null),next_payment_currency:$('nextPaymentCurrency')?.value||$('bookingCurrency').value,next_payment_stage:$('nextPaymentStage').value||'final_balance',payment_strategy:$('paymentStrategy').value||'custom',second_deposit_paid_date:$('stagedPaymentPaidDate')?.value||null,payment_strategy_notes:$('paymentStrategyNotes').value.trim()||null,supplier_amount_owed:type==='villa_stay'?Number($('totalRental').value||0):(stagedSecondPaid?stagedFinalAmount:Number($('supplierAmountOwed').value||0)),supplier_payment_due_date:type==='villa_stay'?($('arrivalDate').value||null):type==='private_chef'?($('chefDate').value||$('serviceDate').value||null):(stagedSecondPaid?stagedSupplierDueDate:($('supplierPaymentDueDate')?.value||null)),supplier_currency:type==='villa_stay'?$('bookingCurrency').value:((type==='boat_charter'||type==='private_chef')?'EUR':$('supplierCurrency').value),booking_currency:type==='boat_charter'?'EUR':$('bookingCurrency').value,commission_currency:$('commissionCurrency').value,balance_due_date:$('balanceDueDate').value||null,commission_rate:selectedCommissionRate()/100,commission_type:$('commissionType').value,commission_fixed_amount:$('commissionType').value==='fixed'?Number($('commissionFixedAmount').value||0):null,damage_deposit:Number($('damageDeposit').value||0),lead_source:$('leadSource').value.trim()||null,status:$('bookingStatus').value,arrival_flight:$('arrivalFlight').value.trim()||null,departure_flight:$('departureFlight').value.trim()||null,arrival_airport:conditionalValue('arrivalAirportSelect','arrivalAirport'),departure_airport:conditionalValue('departureAirportSelect','departureAirport'),flight_details:$('flightDetails').value.trim()||null,chef_booked:['confirmed','completed'].includes($('chefStatus').value),boat_booked:$('boatStatus').value==='confirmed',decorations_booked:['confirmed','completed'].includes($('decorStatus').value),notes:$('bookingNotes').value.trim()||null};
   if(!id&&!allowDuplicateOnce){const duplicate=findDuplicateBooking(payload);if(duplicate){$('saveBooking').disabled=false;setSaveStatus('dirty','Possible duplicate');openDuplicateWarning(duplicate,()=>$('bookingForm').requestSubmit());return;}}allowDuplicateOnce=false;
   let result=id?await supabaseClient.from('bookings').update(payload).eq('id',id).select().single():await supabaseClient.from('bookings').insert({...payload,deposit_received:payload.deposit_paid}).select().single();
   if(!result.error&&!id&&!payload.itinerary_id){
@@ -3483,7 +3495,37 @@ $('archiveSearchInput')?.addEventListener('input',renderArchives);
 $('archiveTypeFilter')?.addEventListener('change',renderArchives);
 
 
-document.addEventListener('click',async e=>{const btn=e.target.closest('[data-resource-toggle]');if(!btn)return;const id=btn.dataset.resourceToggle;btn.disabled=true;const{error}=await supabaseClient.from('master_resources').update({active:false}).eq('id',id);$('resourceMessage').textContent=error?error.message:'Resource removed.';if(error){btn.disabled=false;return;}const item=resources.find(r=>String(r.id)===String(id));if(item)item.active=false;renderResources();});
+document.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-resource-toggle]');
+  if(!btn)return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id=btn.dataset.resourceToggle;
+  const item=resources.find(r=>String(r.id)===String(id));
+  if(!item)return;
+  btn.disabled=true;
+  const {data,error}=await supabaseClient
+    .from('master_resources')
+    .update({active:false})
+    .eq('id',id)
+    .select('id,active')
+    .maybeSingle();
+  if(error){
+    $('resourceMessage').textContent=error.message;
+    btn.disabled=false;
+    return;
+  }
+  if(!data){
+    $('resourceMessage').textContent='Supplier could not be removed. No database row was updated.';
+    btn.disabled=false;
+    return;
+  }
+  item.active=false;
+  $('resourceMessage').textContent=`${item.name} removed.`;
+  renderResources();
+  await loadResources();
+  renderResources();
+});
 init();
 
 $('bookingCurrency')?.addEventListener('change',()=>{

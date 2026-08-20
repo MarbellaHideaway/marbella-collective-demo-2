@@ -1135,3 +1135,7 @@ input:focus,select:focus,textarea:focus{outline-color:rgba(232,68,37,.15);border
 
 /* v3-25 — retired chef supplier / assigned-chef inputs */
 .chef-obsolete-field{display:none!important;}
+
+/* v3-27: sidebar uses a single persistent active item; hover is intentionally subtle. */
+.sidebar .nav-item:hover:not(.active){background:rgba(255,255,255,.06);color:#fff}
+.sidebar .nav-item.active{background:#e84425;color:#fff}
