@@ -637,7 +637,9 @@ function generatedServiceTitle(type){
 function refreshGeneratedTitle(){const el=$('serviceTitle');if(el)el.value=generatedServiceTitle($('bookingType')?.value||'villa_stay');}
 function venueCategoryMatches(resource, type){
   const category=String(resource?.resource_type||'').trim().toLowerCase().replace(/[\s-]+/g,'_');
-  return type==='restaurant'?['restaurant','restaurants'].includes(category):['nightclub','nightclubs','night_club','night_clubs'].includes(category);
+  // Restaurants and nightclubs are both venue suppliers; permit either to be
+  // selected for a venue reservation without changing the saved supplier type.
+  return ['restaurant','restaurants','nightclub','nightclubs','night_club','night_clubs'].includes(category);
 }
 function populateVenueSupplier(type, saved=''){
   const select=$('venueSupplier');if(!select)return;
@@ -648,14 +650,15 @@ function populateVenueSupplier(type, saved=''){
   if(previous&&!names.includes(previous))select.add(new Option(previous+' (previously saved)',previous));
   select.value=previous;
 }
-// Reload the existing supplier directory when opening a venue booking. A newly
-// added supplier may not yet be present in the app's initial in-memory snapshot.
+let venueRefreshSerial=0;
 async function refreshVenueSuppliers(type){
-  const {data,error}=await supabaseClient.from('master_resources').select('*');
+  const serial=++venueRefreshSerial;
+  const {data,error}=await supabaseClient.from('master_resources').select('*').in('resource_type',['restaurant','restaurants','nightclub','nightclubs','night_club','night_clubs']).range(0,999);
   if(error){console.error('Unable to refresh venue suppliers',error);return;}
-  if(!Array.isArray(data))return;
-  resources=data;
-  if(($('bookingType')?.value||'')===type&&!$('modal')?.classList.contains('hidden')){
+  if(serial!==venueRefreshSerial||!Array.isArray(data))return;
+  // Preserve all other resource types already in memory.
+  resources=[...resources.filter(r=>!venueCategoryMatches(r,type)),...data];
+  if(($('bookingType')?.value||'')===type){
     populateVenueSupplier(type);
     refreshGeneratedTitle();
   }
@@ -2534,15 +2537,17 @@ function openModal(b=null,options={}){$('supplierCurrency')?.removeAttribute('da
   syncGuestTotal();
   if(!b){$('leadSource').value='Marbella Collective';$('bookingStatus').value='Confirmed';$('depositReceived').value=0;$('depositPaid').value=0;$('depositPaidDate').value=todayISO();if($('depositCurrency'))$('depositCurrency').value='EUR';if($('gbpEurRate'))$('gbpEurRate').value='1.15';$('nextPaymentAmount').value=0;$('nextPaymentDueDate').value='';$('nextPaymentStage').value='final_balance';$('paymentStrategy').value='deposit_50_30';$('paymentStrategyNotes').value='';$('supplierAmountOwed').value=0;$('supplierCurrency').value='GBP';$('arrivalAirportSelect').value='Málaga';$('departureAirportSelect').value='Málaga';$('bookingCurrency').value='GBP';$('commissionCurrency').value='GBP';$('boatCurrency').value='EUR';$('chefCurrency').value='EUR';$('commissionType').value='percentage';$('commissionFixedAmount').value='';syncCommissionControl(10);toggleCommissionType();setCommissionControlsEnabled(true);setConditionalSelect('guestNationalitySelect','guestNationality','');}
   if(!b&&options.customer)applyExistingCustomer(options.customer);
-  if(!b&&['boat_charter','restaurant','nightclub'].includes(requestedBookingType)){
-    const arrival=options.sourceBooking?.booking_type==='villa_stay'?options.sourceBooking.arrival_date:villaArrivalForCustomer(options.customer);
-    if(arrival&&$('serviceDate'))$('serviceDate').value=arrival;
-    if(arrival&&requestedBookingType==='boat_charter'&&$('boatDate'))$('boatDate').value=arrival;
+  if(!b&&requestedBookingType!=='villa_stay'){
+    const villaArrival=options.sourceBooking?.booking_type==='villa_stay'
+      ?options.sourceBooking.arrival_date:villaArrivalForCustomer(options.customer);
+    const fallbackDate=options.sourceBooking
+      ?(options.sourceBooking.booking_type==='villa_stay'?options.sourceBooking.arrival_date:bookingPrimaryDate(options.sourceBooking)):'';
+    const inheritedDate=villaArrival||fallbackDate||'';
+    if(inheritedDate&&$('serviceDate')&&!$('serviceDate').value)$('serviceDate').value=inheritedDate;
+    if(inheritedDate&&requestedBookingType==='boat_charter'&&$('boatDate')&&!$('boatDate').value)$('boatDate').value=inheritedDate;
   }
-  if(!b&&['restaurant','nightclub'].includes(requestedBookingType))void refreshVenueSuppliers(requestedBookingType);
   if(!b&&options.sourceBooking){
     const s=options.sourceBooking;
-    $('serviceDate').value=(s.booking_type==='villa_stay'?s.arrival_date:bookingPrimaryDate(s))||$('serviceDate').value||'';
     setConditionalSelect('eventLocationSelect','eventLocation',s.event_location||bookingBoat(s.id)?.departure_marina||'','');
     $('guestCount').value=s.number_of_guests||bookingBoat(s.id)?.guests||'';
     $('bookingCurrency').value=bookingCurrency(s);
@@ -2551,6 +2556,7 @@ function openModal(b=null,options={}){$('supplierCurrency')?.removeAttribute('da
   $('depositReceived').disabled=Boolean(b);
 updateBoatFinancials();updateChefFinancials();['decor','shop','beach','ent'].forEach(updateExperienceBalance);updateVillaConciergeVisibility();
   $('deleteBookingButton').classList.toggle('hidden',!b);$('bookingMessage').textContent='';$('modal').classList.remove('hidden');$('modal').setAttribute('aria-hidden','false');document.body.classList.add('editor-open');
+  if(['restaurant','nightclub'].includes(requestedBookingType))void refreshVenueSuppliers(requestedBookingType);
   workspaceDirty=false;setSaveStatus('saved','All changes saved');setActiveWorkspaceSection('guestSection');
   requestAnimationFrame(()=>{
     document.querySelector('.workspace-content').scrollTop=0;
