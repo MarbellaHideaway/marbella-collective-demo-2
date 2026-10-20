@@ -12,7 +12,7 @@ const todayISO=()=>new Date().toISOString().slice(0,10);
 const esc=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const yesNo=v=>v?'<span class="status-dot yes">Booked</span>':'<span class="status-dot">Not booked</span>';
 const statusClass=s=>String(s||'confirmed').toLowerCase().replace(/\s+/g,'-');
-const bookingTypeLabel=t=>({villa_stay:'Villa stay',boat_charter:'Boat charter',private_chef:'Private chef',entertainment:'Entertainment',airport_transfer:'Airport transfer',decorations:'Decorations',shopping:'Shopping',beach_club:'Beach club',other:'Other'}[t]||'Villa stay');
+const bookingTypeLabel=t=>({villa_stay:'Villa stay',boat_charter:'Boat charter',private_chef:'Private chef',entertainment:'Entertainment',airport_transfer:'Airport transfer',decorations:'Decorations',shopping:'Shopping',beach_club:'Beach club',nightclub:'Nightclub',restaurant:'Restaurant',other:'Other'}[t]||'Other');
 const primaryResource=b=>{
   const type=b.booking_type||'villa_stay';
   if(type==='villa_stay')return b.villa_name||'Villa not recorded';
@@ -575,6 +575,8 @@ function bookingWorkflowConfig(type){
     entertainment:{page:'New Entertainment Booking',edit:'Edit Entertainment Booking',eyebrow:'Entertainment experience',section:'Event & customer details',date:'Event date',location:'Event location',nav1:'Event',nav2:'Customer & guests',ops:'Event operations'},
     decorations:{page:'New Decorations Booking',edit:'Edit Decorations Booking',eyebrow:'Celebration setup',section:'Setup & customer details',date:'Setup date',location:'Setup location',nav1:'Setup',nav2:'Customer',ops:'Setup operations'},
     shopping:{page:'New Shopping Order',edit:'Edit Shopping Order',eyebrow:'Pre-arrival shopping',section:'Order & customer details',date:'Delivery date',location:'Delivery location',nav1:'Order',nav2:'Customer',ops:'Delivery operations'},
+    nightclub:{page:'New Nightclub Booking',edit:'Edit Nightclub Booking',eyebrow:'Nightlife reservation',section:'Venue & customer details',date:'Reservation date',location:'Meeting point / notes',nav1:'Nightclub',nav2:'Customer & guests',ops:'Reservation details'},
+    restaurant:{page:'New Restaurant Booking',edit:'Edit Restaurant Booking',eyebrow:'Dining reservation',section:'Venue & customer details',date:'Reservation date',location:'Meeting point / notes',nav1:'Restaurant',nav2:'Customer & guests',ops:'Reservation details'},
     beach_club:{page:'New Beach Club Booking',edit:'Edit Beach Club Booking',eyebrow:'Beach experience',section:'Reservation & customer details',date:'Booking date',location:'Venue',nav1:'Reservation',nav2:'Customer & guests',ops:'Experience details'},
     other:{page:'New Service Booking',edit:'Edit Service Booking',eyebrow:'Marbella Collective service',section:'Service & customer details',date:'Service date',location:'Service location',nav1:'Service',nav2:'Customer',ops:'Operations'}
   }[type]||this.villa_stay;
@@ -629,9 +631,18 @@ function generatedServiceTitle(type){
   if(type==='boat_charter'){const boat=selectedBoatName()||'Boat charter';return [boat,formatted($('boatDate')?.value||$('serviceDate')?.value)].filter(Boolean).join(' · ');}
   if(type==='private_chef'){const event=$('chefEventType')?.value||'Private chef';return [event,formatted($('chefDate')?.value||$('serviceDate')?.value)].filter(Boolean).join(' · ');}
   if(type==='entertainment'){const event=$('entTitle')?.value||'Entertainment';return [event,formatted($('entDate')?.value||$('serviceDate')?.value)].filter(Boolean).join(' · ');}
+  if(type==='nightclub'||type==='restaurant')return $('venueSupplier')?.value||bookingTypeLabel(type);
   const label=bookingTypeLabel(type);return [label,formatted($('serviceDate')?.value)].filter(Boolean).join(' · ');
 }
 function refreshGeneratedTitle(){const el=$('serviceTitle');if(el)el.value=generatedServiceTitle($('bookingType')?.value||'villa_stay');}
+function populateVenueSupplier(type, saved=''){
+  const select=$('venueSupplier');if(!select)return;
+  const names=activeResources(type).map(r=>String(r.name||'').trim()).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  const previous=saved||select.value||'';
+  select.innerHTML='<option value="">Select '+(type==='nightclub'?'nightclub':'restaurant')+'</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(previous&&!names.includes(previous))select.add(new Option(previous+' (previously saved)',previous));
+  select.value=previous;
+}
 function applyBookingTypeTemplate(){
   const type=$('bookingType')?.value||'villa_stay',cfg=bookingWorkflowConfig(type);toggleBookingTypeFields();
   if(type==='boat_charter'){
@@ -641,6 +652,11 @@ function applyBookingTypeTemplate(){
     configureChefVillaOptions(conditionalValue('eventLocationSelect','eventLocation')||'');
     if($('eventLocationLabel'))$('eventLocationLabel').firstChild.textContent='Event location';
   }else if($('eventLocationLabel'))$('eventLocationLabel').firstChild.textContent=cfg.location;
+  const isVenue=type==='nightclub'||type==='restaurant';
+  $('venueSupplierField')?.classList.toggle('is-hidden',!isVenue);
+  if(isVenue)populateVenueSupplier(type, $('venueSupplier')?.value||'');
+  if($('venueSupplier'))$('venueSupplier').required=isVenue;
+  $('eventLocationLabel')?.classList.toggle('is-hidden',isVenue);
   $('bookingForm')?.classList.toggle('villa-edit',Boolean($('bookingId')?.value)&&type==='villa_stay');
   document.querySelectorAll('.villa-shopping-module').forEach(el=>el.classList.toggle('hidden',type==='villa_stay'));
   const editing=Boolean($('bookingId')?.value);
@@ -712,7 +728,7 @@ function applyResourceCommissionDefault(force=false){
   setCommissionControlsEnabled(true);
 }
 
-const operationalBookings=()=>bookings.filter(b=>(b.booking_type||'villa_stay')!=='restaurant');
+const operationalBookings=()=>bookings;
 
 function bookingCompletionDate(b){
   const type=b.booking_type||'villa_stay';
@@ -2408,6 +2424,7 @@ function editorBookingTypeTitle(type){
     decorations:'Decorations',
     shopping:'Shopping',
     restaurant:'Restaurant',
+    nightclub:'Nightclub',
     beach_club:'Beach Club',
     other:'Booking'
   }[type]||bookingTypeLabel(type);
@@ -2422,7 +2439,7 @@ function updateBookingWorkspaceTitle(b=null){
 function renderEditItineraryPanel(b=null){
   const panel=$('editItineraryPanel');if(!panel)return;
   if(!b){panel.classList.add('hidden');panel.innerHTML='';return;}
-  const c=customerRecordForBooking(b),rows=(c.bookings||[]).filter(x=>String(x.id)!==String(b.id));
+  const c=customerRecordForBooking(b),rows=sortGuestItinerary((c.bookings||[]).filter(x=>String(x.id)!==String(b.id)));
   if(!rows.length){panel.classList.add('hidden');panel.innerHTML='';return;}
   panel.classList.remove('hidden');
   panel.innerHTML=`<div class="edit-itinerary-head"><div><p class="eyebrow">Linked itinerary</p><strong>Other bookings for ${esc(c.name)}</strong><small>These are separate linked bookings; open one to edit its own details.</small></div></div><div class="edit-itinerary-list">${rows.map(x=>`<div class="edit-itinerary-row"><span class="customer-service-icon">${({villa_stay:'🏡',boat_charter:'⛵',private_chef:'🍽',entertainment:'🎵',decorations:'🎈',shopping:'🛍',beach_club:'🏖',other:'✨'})[x.booking_type]||'•'}</span><div><b>${esc(bookingTypeLabel(x.booking_type))} · ${esc(primaryResource(x))}</b><small>${esc(bookingDisplayDates(x))}</small></div><button type="button" class="button secondary compact" onclick="openLinkedBooking('${x.id}')">Open booking</button></div>`).join('')}</div>`;
@@ -2472,6 +2489,8 @@ function openModal(b=null,options={}){$('supplierCurrency')?.removeAttribute('da
   const fields={serviceTitle:'service_title',serviceDate:'service_date',eventLocation:'event_location',guestName:'guest_name',villaName:'villa_name',arrivalDate:'arrival_date',departureDate:'departure_date',arrivalTime:'arrival_time',departureTime:'departure_time',guestCount:'number_of_guests',adultCount:'adults',childCount:'children',guestEmail:'guest_email',guestPhone:'guest_phone',guestInstagram:'guest_instagram',guestNationality:'guest_nationality',totalRental:'total_rental',depositReceived:'deposit_received',depositPaid:'deposit_paid',depositPaidDate:'deposit_paid_date',depositCurrency:'deposit_currency',nextPaymentAmount:'next_payment_amount',nextPaymentDueDate:'next_payment_due_date',nextPaymentStage:'next_payment_stage',paymentStrategy:'payment_strategy',paymentStrategyNotes:'payment_strategy_notes',supplierAmountOwed:'supplier_amount_owed',supplierCurrency:'supplier_currency',balanceDueDate:'balance_due_date',commissionRate:'commission_rate',damageDeposit:'damage_deposit',leadSource:'lead_source',bookingStatus:'status',arrivalFlight:'arrival_flight',departureFlight:'departure_flight',arrivalAirport:'arrival_airport',departureAirport:'departure_airport',flightDetails:'flight_details',bookingNotes:'notes'};
   Object.entries(fields).forEach(([id,key])=>{const el=$(id);if(el)el.value=b?.[key]??'';});
   $('bookingType').value=requestedBookingType;
+  if(requestedBookingType==='nightclub'||requestedBookingType==='restaurant')populateVenueSupplier(requestedBookingType,b?.service_title||'');
+  else if($('venueSupplier'))$('venueSupplier').value='';
   if(b?.booking_type==='villa_stay'&&$('paymentStrategy')&&['pay_later','standard_50_30','staged'].includes(String(b?.payment_strategy||''))){
     const total=Number(b?.total_rental||0),deposit=Number(b?.deposit_paid||0);
     const pct=total?Math.round((deposit/total)*100):0;
@@ -2981,8 +3000,9 @@ function customerBookingCurrencySummary(list,getter){
   list.forEach(x=>{const c=bookingCurrency(x);totals[c]+=Number(getter(x)||0);});
   return ['GBP','EUR'].filter(c=>totals[c]!==0).map(c=>money(totals[c],c)).join(' / ')||money(0,'GBP');
 }
+function sortGuestItinerary(rows){return [...rows].sort((a,b)=>{const av=a.booking_type==='villa_stay'?0:1,bv=b.booking_type==='villa_stay'?0:1;if(av!==bv)return av-bv;const ad=bookingPrimaryDate(a)||'9999-12-31',bd=bookingPrimaryDate(b)||'9999-12-31';return ad.localeCompare(bd)||String(a.id||'').localeCompare(String(b.id||''));});}
 function customerItineraryRows(customer){
-  return [...customer.bookings].sort((a,b)=>new Date(bookingPrimaryDate(a)||'9999-12-31')-new Date(bookingPrimaryDate(b)||'9999-12-31')).map(x=>{
+  return sortGuestItinerary(customer.bookings).map(x=>{
     const next=nextPaymentAmountFor(x);
     return `<article class="customer-itinerary-row">
       <div class="customer-service-icon">${({villa_stay:'🏡',boat_charter:'⛵',private_chef:'🍽',entertainment:'🎵',decorations:'🎈',shopping:'🛍',beach_club:'🏖',other:'✨'})[x.booking_type]||'•'}</div>
@@ -3004,7 +3024,7 @@ function renderCustomerRecord(b){
     <div class="customer-record-stats"><div><span>Linked bookings</span><strong>${bs.length}</strong></div><div><span>Total value</span><strong>${total}</strong></div><div><span>Received</span><strong>${paid}</strong></div><div><span>Outstanding</span><strong>${balance}</strong></div></div>
   </section>
   <section class="customer-contact-card"><div><span>WhatsApp</span><strong>${esc(c.phone||'Not recorded')}</strong></div><div><span>Email</span><strong>${esc(c.email||'Not recorded')}</strong></div><div><span>Instagram</span><strong>${esc(c.instagram||'Not recorded')}</strong></div><div><span>Nationality</span><strong>${esc(c.nationality||'Not recorded')}</strong></div><div><span>Lead source</span><strong>${esc(c.lead_source||'—')}</strong></div></section>
-  <section class="customer-itinerary-section"><div class="customer-itinerary-head"><div><p class="section-kicker">Complete itinerary</p><h3>All bookings for ${esc(c.name)}</h3><p>Villa stays and concierge services are kept together under this customer.</p></div><div class="customer-itinerary-actions"><button class="button secondary" onclick="activeDetailTab='ai';document.querySelectorAll('.detail-tab').forEach(t=>t.classList.toggle('active',t.dataset.detailTab==='ai'));renderDetail();">AI Concierge</button><button class="button secondary" onclick="activeDetailTab='timeline';document.querySelectorAll('.detail-tab').forEach(t=>t.classList.toggle('active',t.dataset.detailTab==='timeline'));renderDetail();">Customer timeline</button><button class="button primary" onclick="addServiceToCustomer('${b.id}')">Add to itinerary</button></div></div>
+  <section class="customer-itinerary-section"><div class="customer-itinerary-head"><div><p class="section-kicker">Complete itinerary</p><h3>All bookings for ${esc(c.name)}</h3><p>Villa stays and concierge services are kept together under this customer.</p></div><div class="customer-itinerary-actions"><button class="button secondary" onclick="activeDetailTab='concierge';document.querySelectorAll('.detail-tab').forEach(t=>t.classList.toggle('active',t.dataset.detailTab==='concierge'));renderDetail();">Concierge</button><button class="button secondary" onclick="activeDetailTab='timeline';document.querySelectorAll('.detail-tab').forEach(t=>t.classList.toggle('active',t.dataset.detailTab==='timeline'));renderDetail();">Customer timeline</button><button class="button primary" onclick="addServiceToCustomer('${b.id}')">Add to itinerary</button></div></div>
   <div class="customer-itinerary-list">${customerItineraryRows(c)}</div></section>`;
 }
 window.addServiceToCustomer=id=>{
@@ -3495,8 +3515,8 @@ function toggleBookingTypeFields(){
   if($('departureDate'))$('departureDate').required=isVilla;
   if($('serviceDate'))$('serviceDate').required=!isVilla;
 }
-$('bookingType')?.addEventListener('change',applyBookingTypeTemplate);
-['villaName','arrivalDate','boatName','boatNameOther','primaryBoatName','primaryBoatNameOther','boatDate','serviceDate','chefEventType','chefDate','entTitle'].forEach(id=>$(id)?.addEventListener('input',refreshGeneratedTitle));
+$('bookingType')?.addEventListener('change',()=>{if($('venueSupplier'))$('venueSupplier').value='';applyBookingTypeTemplate();});
+['venueSupplier','villaName','arrivalDate','boatName','boatNameOther','primaryBoatName','primaryBoatNameOther','boatDate','serviceDate','chefEventType','chefDate','entTitle'].forEach(id=>$(id)?.addEventListener('input',refreshGeneratedTitle));
 $('boatName')?.addEventListener('change',()=>{toggleOtherBoat();syncBoatSelectors('secondary');});
 $('primaryBoatName')?.addEventListener('change',()=>{togglePrimaryOtherBoat();syncBoatSelectors('primary');});
 $('primaryBoatNameOther')?.addEventListener('input',()=>syncBoatSelectors('primary'));
